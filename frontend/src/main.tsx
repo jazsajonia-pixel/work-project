@@ -1,24 +1,507 @@
-import React,{useEffect,useState} from 'react';
-import {createRoot} from 'react-dom/client';
-import {LayoutDashboard,Plus,FileText,Settings,Car,AlertTriangle,ShieldCheck,Upload,Trash2,Paperclip} from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { createRoot } from 'react-dom/client';
+import {
+  AlertCircle,
+  ArrowRight,
+  Check,
+  ChevronDown,
+  CircleHelp,
+  FileCheck2,
+  FileText,
+  ImagePlus,
+  LayoutDashboard,
+  LoaderCircle,
+  LockKeyhole,
+  Menu,
+  MoreHorizontal,
+  Paperclip,
+  Plus,
+  RefreshCw,
+  ScanSearch,
+  Send,
+  Settings,
+  ShieldCheck,
+  Sparkles,
+  Trash2,
+  Upload,
+  X,
+  Car,
+} from 'lucide-react';
 import './style.css';
-const API=(import.meta.env.VITE_API_BASE_URL||'/api').replace(/\/$/,''); const H={'X-Dev-User':import.meta.env.VITE_DEV_USER||'admin'};
-async function api(path:string,options:any={}){const r=await fetch(API+path,{headers:{...H,...(options.body instanceof FormData?{}:{'Content-Type':'application/json'})},...options});const d=await r.json().catch(()=>({}));if(!r.ok)throw d;return d}
-type Batch={batch_id:string,title:string,preparation_date:string,incident_date:string,incident_time:string,location:string,period_start:string,period_end:string,operational_info:string,notes:string,status:string};
-const empty:Batch={batch_id:'',title:'',preparation_date:'',incident_date:'',incident_time:'',location:'',period_start:'',period_end:'',operational_info:'',notes:'',status:'Draft'};
-function App(){const [tab,setTab]=useState('Overview'),[dash,setDash]=useState<any>({}),[batch,setBatch]=useState<Batch>(empty),[vehicles,setVehicles]=useState<any[]>([]),[uploads,setUploads]=useState<any[]>([]),[msg,setMsg]=useState(''),[warnings,setWarnings]=useState<any>({});
- const load=()=>api('/dashboard').then(setDash).catch(e=>setMsg(e.detail||'Start the API server first.')); useEffect(()=>{load()},[]);
- const open=async(id:string)=>{let b=await api(`/batches/${id}`),v=await api(`/batches/${id}/vehicles`),u=await api(`/batches/${id}/uploads`);setBatch(b);setVehicles(v);setUploads(u);setTab('Batch');};
- const save=async(e:any)=>{e.preventDefault();try{let b=await api('/batches',{method:'POST',body:JSON.stringify(batch)});setBatch(b);setMsg('Batch saved as draft.');load()}catch(e:any){if(batch.batch_id)try{let b=await api(`/batches/${batch.batch_id}`,{method:'PUT',body:JSON.stringify(batch)});setBatch(b);setMsg('Batch updated.')}catch(x:any){setMsg(x.detail||'Unable to save batch.')}}};
- const addVehicle=async()=>{let v=await api(`/batches/${batch.batch_id}/vehicles`,{method:'POST',body:JSON.stringify({category:'MC',recovery_date:batch.incident_date,recovery_place:batch.location})});setVehicles([...vehicles,v]);setMsg('Blank vehicle record added for manual review.')};
- const uploadPhotos=async(e:any)=>{let fd=new FormData();Array.from(e.target.files as FileList).forEach(f=>fd.append('files',f));try{let added=await api(`/batches/${batch.batch_id}/photos`,{method:'POST',body:fd});setUploads([...uploads,...added]);setMsg(`${added.length} photo upload(s) stored privately.`)}catch(x:any){setMsg(x.detail||'Photo upload failed.')}};
- const associate=async(id:number,vehicle_id:string)=>{let u=await api(`/uploads/${id}/associate?vehicle_id=${vehicle_id}`,{method:'PATCH'});setUploads(uploads.map(x=>x.id===id?u:x))};
- const attach=async(vehicle_id:number,e:any)=>{let fd=new FormData();fd.append('file',e.target.files[0]);fd.append('document_type','Possessor ID/license');let u=await api(`/vehicles/${vehicle_id}/attachments`,{method:'POST',body:fd});setUploads([...uploads,u]);setMsg('Attachment stored privately and associated with the selected vehicle.')};
- const validate=async()=>{let w=await api(`/batches/${batch.batch_id}/validate`);setWarnings(w);}; const generate=async(k:string)=>{try{let r=await api(`/batches/${batch.batch_id}/draft/${k}`,{method:'POST'});setMsg(`${k} draft generated: ${r.validation_status}`)}catch(e:any){setWarnings(e.detail||e);setMsg('Resolve blocking validation errors first.')}};
- return <div className="app"><aside><div className="brand"><ShieldCheck/> GSCHPT <small>REPORTING</small></div><nav>{[['Overview',LayoutDashboard],['New Batch',Plus],['Vehicle Records',Car],['Generated Drafts',FileText],['Templates',Settings]].map(([n,I]:any)=><button className={tab===n?'active':''} onClick={()=>setTab(n)}><I size={18}/>{n}</button>)}</nav><div className="private"><ShieldCheck size={16}/> Private workspace<br/><span>Draft outputs only</span></div></aside><main><header><div><p className="eyebrow">OPERATIONS / {tab.toUpperCase()}</p><h1>{tab==='Overview'?'Reporting Dashboard':tab}</h1></div><span className="date">Asia/Manila · {new Date().toLocaleDateString()}</span></header>{msg&&<div className="notice"><AlertTriangle size={17}/>{msg}</div>}{tab==='Overview'&&<Overview dash={dash} open={open} newBatch={()=>{setBatch(empty);setVehicles([]);setUploads([]);setTab('New Batch')}}/>}{tab==='New Batch'&&<BatchForm batch={batch} setBatch={setBatch} save={save}/>} {tab==='Batch'&&<BatchWorkspace batch={batch} vehicles={vehicles} uploads={uploads} addVehicle={addVehicle} uploadPhotos={uploadPhotos} associate={associate} attach={attach} validate={validate} warnings={warnings} generate={generate}/>} {['Vehicle Records','Generated Drafts','Templates'].includes(tab)&&<section className="card empty"><Settings size={36}/><h3>{tab}</h3><p>Open a batch to review its records and private uploads. Generated drafts remain server-side and are never published or sent automatically.</p>{tab==='Generated Drafts'&&(dash.recent_batches||[]).map((b:any)=><button className="textbtn" onClick={()=>open(b.batch_id)}>Open {b.batch_id} →</button>)}</section>}</main></div>}
-function Overview({dash,open,newBatch}:any){return <><section className="hero"><div><span className="eyebrow">PHASE 1 FOUNDATION</span><h2>Operational clarity, <em>without the guesswork.</em></h2><p>Prepare validated daily and weekly report drafts from manually reviewed records.</p><button className="primary" onClick={newBatch}><Plus size={17}/> New reporting batch</button></div><div className="hero-art"><Car size={76}/><span>RHPU12<br/>GSCHPT</span></div></section><div className="stats"><Stat t="Total batches" v={dash.total_batches||0}/><Stat t="Drafts generated" v={dash.draft_reports||0}/><Stat t="Pending review" v={dash.records_review||0}/></div><section className="card"><div className="card-head"><div><span className="eyebrow">RECENT ACTIVITY</span><h3>Recent batches</h3></div></div>{(dash.recent_batches||[]).map((b:any)=><div className="row"><div className="avatar">{b.batch_id.slice(-2)}</div><div><b>{b.title||b.batch_id}</b><small>{b.batch_id} · {b.location} · prepared {b.preparation_date}</small></div><button className="textbtn" onClick={()=>open(b.batch_id)}>Open →</button></div>)}</section></>}
-function Stat(p:any){return <div className="stat"><small>{p.t}</small><strong>{p.v}</strong></div>}
-function BatchForm({batch,setBatch,save}:any){return <section className="card formcard"><span className="eyebrow">NEW WORK ITEM</span><h3>Create reporting batch</h3><form onSubmit={save}><Field label="Unique batch ID" value={batch.batch_id} req onChange={(v:string)=>setBatch({...batch,batch_id:v})} placeholder="GSCHPT-2026-001"/><Field label="Batch title or reference" value={batch.title} onChange={(v:string)=>setBatch({...batch,title:v})} placeholder="Weekly recovery operations"/><div className="grid"><Field label="Incident/recovery date" type="date" value={batch.incident_date} req onChange={(v:string)=>setBatch({...batch,incident_date:v})}/><Field label="Incident time" type="time" value={batch.incident_time} req onChange={(v:string)=>setBatch({...batch,incident_time:v})}/><Field label="Weekly period start" type="date" value={batch.period_start} onChange={(v:string)=>setBatch({...batch,period_start:v})}/><Field label="Weekly period end" type="date" value={batch.period_end} onChange={(v:string)=>setBatch({...batch,period_end:v})}/></div><Field label="Incident location" value={batch.location} req onChange={(v:string)=>setBatch({...batch,location:v})}/><label>Operational information<textarea value={batch.operational_info} onChange={e=>setBatch({...batch,operational_info:e.target.value})}/></label><label>Notes<textarea value={batch.notes} onChange={e=>setBatch({...batch,notes:e.target.value})}/></label><div className="prep">Preparation date uses <b>Asia/Manila</b> after save and never replaces the incident date.</div><button className="primary">Save batch as draft</button></form></section>}
-function Field({label,value,onChange,type='text',req=false,placeholder='' }:any){return <label>{label}<input required={req} type={type} value={value||''} placeholder={placeholder} onChange={e=>onChange(e.target.value)}/></label>}
-function BatchWorkspace({batch,vehicles,uploads,addVehicle,uploadPhotos,associate,attach,validate,warnings,generate}:any){return <section className="card"><span className="eyebrow">BATCH / {batch.batch_id}</span><h3>{batch.title||'Untitled batch'}</h3><p className="muted">Incident {batch.incident_date} {batch.incident_time} · {batch.location} · period {batch.period_start||'—'} to {batch.period_end||'—'}</p><div className="workspace-grid"><div><div className="section-head"><h3>Vehicle records</h3><button className="secondary" onClick={addVehicle}><Car size={16}/> Add vehicle</button></div>{vehicles.map((v:any)=><div className="vehicle"><b>{v.category} · {v.make||'Unknown make'} {v.model}</b><small>{v.plate_or_sticker||'No plate/sticker'} · {v.review_status}</small><label className="attach"><Paperclip size={14}/> Attach possessor ID/license<input type="file" hidden onChange={e=>attach(v.id,e)}/></label></div>)}<h3>Unsorted vehicle photos</h3><label className="upload"><Upload size={19}/> Select multiple JPG, PNG, or WebP images<input type="file" multiple accept="image/jpeg,image/png,image/webp" hidden onChange={uploadPhotos}/></label>{uploads.map((u:any)=><div className="upload-row"><span>{u.kind==='PHOTO'?'Photo':'Document'} · {u.filename}</span>{u.kind==='PHOTO'&&<select value={u.vehicle_id||''} onChange={e=>associate(u.id,e.target.value)}><option value="">Unassigned</option>{vehicles.map((v:any)=><option value={v.id}>{v.category} #{v.id}</option>)}</select>}<button className="iconbtn"><Trash2 size={15}/></button></div>)}</div><div className="generation"><h3>Validate & generate drafts</h3><button className="secondary" onClick={validate}>Run validation</button>{(warnings.blocking||[]).map((x:string)=><p className="error">Blocking: {x}</p>)}{(warnings.review||[]).map((x:string)=><p className="warning">Review: {x}</p>)}<div className="actions"><button onClick={()=>generate('TXT')}>Generate TXT</button><button onClick={()=>generate('DOCX')}>Generate DOCX</button><button onClick={()=>generate('PPTX')}>Generate PPTX</button></div></div></div></section>}
-createRoot(document.getElementById('root')!).render(<App/>);
+
+const API = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '');
+const H = { 'X-Dev-User': import.meta.env.VITE_DEV_USER || 'admin' };
+
+async function api(path: string, options: any = {}) {
+  const headers = {
+    ...H,
+    ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
+    ...(options.headers || {}),
+  };
+  const response = await fetch(API + path, { ...options, headers });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw data;
+  return data;
+}
+
+type Batch = {
+  batch_id: string;
+  title: string;
+  preparation_date: string;
+  incident_date: string;
+  incident_time: string;
+  location: string;
+  period_start: string;
+  period_end: string;
+  operational_info: string;
+  notes: string;
+  status: string;
+};
+
+type UploadRecord = {
+  id: number;
+  batch_id: string;
+  vehicle_id: number | null;
+  kind: 'PHOTO' | 'DOCUMENT';
+  filename: string;
+  content_type: string;
+  primary_image: number;
+  document_type: string;
+};
+
+type Vehicle = {
+  id: number;
+  batch_id: string;
+  category: string;
+  make: string;
+  vehicle_type: string;
+  model: string;
+  plate_or_sticker: string;
+  chassis_number: string;
+  motor_number: string;
+  color: string;
+  recovery_date: string;
+  recovery_place: string;
+  recovering_unit: string;
+  mode_of_recovery: string;
+  violation: string;
+  status: string;
+  driver_name: string;
+  driver_address: string;
+  owner_name: string;
+  owner_address: string;
+  notes: string;
+  review_status: string;
+};
+
+const newBatch = (): Batch => ({
+  batch_id: '',
+  title: '',
+  preparation_date: '',
+  incident_date: '',
+  incident_time: '',
+  location: '',
+  period_start: '',
+  period_end: '',
+  operational_info: '',
+  notes: '',
+  status: 'Draft',
+});
+
+const navItems = [
+  ['Overview', LayoutDashboard],
+  ['New Batch', Plus],
+  ['Vehicle Records', Car],
+  ['Generated Drafts', FileText],
+  ['Templates', Settings],
+] as const;
+
+function App() {
+  const [tab, setTab] = useState('Overview');
+  const [dashboard, setDashboard] = useState<any>({});
+  const [batch, setBatch] = useState<Batch>(newBatch());
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [uploads, setUploads] = useState<UploadRecord[]>([]);
+  const [message, setMessage] = useState('');
+  const [warnings, setWarnings] = useState<any>({});
+  const [busy, setBusy] = useState('');
+  const [aiReview, setAiReview] = useState({ state: 'idle', total: 0, done: 0, errors: 0 });
+  const [aiResults, setAiResults] = useState<Record<number, any>>({});
+
+  const loadDashboard = async () => {
+    try {
+      setDashboard(await api('/dashboard'));
+    } catch (error: any) {
+      setMessage(error.detail || 'The dashboard could not be loaded.');
+    }
+  };
+
+  const loadBatch = async (id: string) => {
+    const [loadedBatch, loadedVehicles, loadedUploads] = await Promise.all([
+      api(`/batches/${id}`),
+      api(`/batches/${id}/vehicles`),
+      api(`/batches/${id}/uploads`),
+    ]);
+    setBatch(loadedBatch);
+    setVehicles(loadedVehicles);
+    setUploads(loadedUploads);
+    setWarnings({});
+    setAiReview({ state: 'idle', total: 0, done: 0, errors: 0 });
+    setAiResults({});
+    setTab('Batch');
+  };
+
+  useEffect(() => {
+    void loadDashboard();
+  }, []);
+
+  const openBatch = async (id: string) => {
+    setBusy('Opening batch…');
+    try {
+      await loadBatch(id);
+    } catch (error: any) {
+      setMessage(error.detail || 'Unable to open this batch.');
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const saveBatch = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setBusy('Saving batch…');
+    try {
+      let saved: Batch;
+      try {
+        saved = await api('/batches', { method: 'POST', body: JSON.stringify(batch) });
+      } catch (error: any) {
+        if (!batch.batch_id) throw error;
+        saved = await api(`/batches/${batch.batch_id}`, { method: 'PUT', body: JSON.stringify(batch) });
+      }
+      await loadBatch(saved.batch_id);
+      await loadDashboard();
+      setMessage('Batch saved. Start by uploading all vehicle photos for this operation.');
+    } catch (error: any) {
+      setMessage(error.detail || 'Unable to save this batch.');
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const addVehicle = async () => {
+    if (!batch.batch_id) return;
+    setBusy('Adding vehicle record…');
+    try {
+      const vehicle = await api(`/batches/${batch.batch_id}/vehicles`, {
+        method: 'POST',
+        body: JSON.stringify({
+          category: 'MC',
+          recovery_date: batch.incident_date,
+          recovery_place: batch.location,
+        }),
+      });
+      setVehicles((current) => [...current, vehicle]);
+      setMessage('New vehicle record added. Fill in its details, then match its photos below.');
+    } catch (error: any) {
+      setMessage(error.detail || 'Unable to add a vehicle record.');
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const uploadPhotos = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    event.currentTarget.value = '';
+    if (!files.length || !batch.batch_id) return;
+    setBusy(`Uploading ${files.length} photo${files.length === 1 ? '' : 's'}…`);
+    try {
+      const form = new FormData();
+      files.forEach((file) => form.append('files', file));
+      const added: UploadRecord[] = await api(`/batches/${batch.batch_id}/photos`, {
+        method: 'POST',
+        body: form,
+      });
+      setUploads((current) => [...current, ...added]);
+      setMessage(`${added.length} photo${added.length === 1 ? '' : 's'} saved. Photo review is now running in the background.`);
+      setAiReview({ state: 'running', total: added.length, done: 0, errors: 0 });
+      void reviewPhotos(added);
+    } catch (error: any) {
+      setMessage(error.detail || 'Photo upload failed.');
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const reviewPhotos = async (photos: UploadRecord[]) => {
+  let done = 0;
+  let errors = 0;
+  await Promise.all(photos.map(async (photo) => {
+    try {
+      const result = await api(`/uploads/${photo.id}/analyze`, { method: 'POST' });
+      setAiResults((current) => ({ ...current, [photo.id]: result }));
+    } catch {
+      errors += 1;
+    } finally {
+      done += 1;
+      setAiReview({ state: done === photos.length ? 'done' : 'running', total: photos.length, done, errors });
+    }
+  }));
+    if (errors) {
+      setMessage(`Photos are saved. ${errors} photo review${errors === 1 ? '' : 's'} could not complete; you can continue manually.`);
+    } else {
+      setMessage('Photo review finished. Match each photo to the correct vehicle when ready.');
+    }
+  };
+
+  const associatePhoto = async (uploadId: number, vehicleId: string) => {
+    setBusy('Saving photo match…');
+    try {
+      const updated = await api(`/uploads/${uploadId}/associate?vehicle_id=${vehicleId || ''}`, { method: 'PATCH' });
+      setUploads((current) => current.map((item) => (item.id === uploadId ? updated : item)));
+    } catch (error: any) {
+      setMessage(error.detail || 'Unable to save the photo match.');
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const makePrimary = async (upload: UploadRecord) => {
+    if (!upload.vehicle_id) return;
+    setBusy('Marking primary photo…');
+    try {
+      const updated = await api(`/uploads/${upload.id}/associate?vehicle_id=${upload.vehicle_id}&primary_image=true`, { method: 'PATCH' });
+      setUploads((current) => current.map((item) => {
+        if (item.vehicle_id !== upload.vehicle_id || item.kind !== 'PHOTO') return item;
+        return item.id === updated.id ? updated : { ...item, primary_image: 0 };
+      }));
+      setMessage('Primary photo selected for this vehicle.');
+    } catch (error: any) {
+      setMessage(error.detail || 'Unable to select the primary photo.');
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const deleteUpload = async (uploadId: number) => {
+    setBusy('Removing file…');
+    try {
+      await api(`/uploads/${uploadId}`, { method: 'DELETE' });
+      setUploads((current) => current.filter((item) => item.id !== uploadId));
+      setMessage('File removed.');
+    } catch (error: any) {
+      setMessage(error.detail || 'Unable to remove this file.');
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const attachDocument = async (vehicleId: number, event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.currentTarget.value = '';
+    if (!file) return;
+    setBusy('Saving optional document…');
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      form.append('document_type', 'Possessor ID/license');
+      const saved = await api(`/vehicles/${vehicleId}/attachments`, { method: 'POST', body: form });
+      setUploads((current) => [...current, saved]);
+      setMessage('Optional document saved to this vehicle.');
+    } catch (error: any) {
+      setMessage(error.detail || 'Unable to save this document.');
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const editVehicle = async (vehicle: Vehicle) => {
+    setBusy('Saving vehicle details…');
+    try {
+      const updated = await api(`/vehicles/${vehicle.id}`, { method: 'PUT', body: JSON.stringify(vehicle) });
+      setVehicles((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+      setMessage('Vehicle details saved.');
+    } catch (error: any) {
+      setMessage(error.detail || 'Unable to save vehicle details.');
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const deleteVehicle = async (vehicleId: number) => {
+    if (!window.confirm('Remove this vehicle record? Its uploaded files will stay in the batch as unmatched files.')) return;
+    setBusy('Removing vehicle record…');
+    try {
+      await api(`/vehicles/${vehicleId}`, { method: 'DELETE' });
+      setVehicles((current) => current.filter((item) => item.id !== vehicleId));
+      setUploads((current) => current.map((item) => item.vehicle_id === vehicleId ? { ...item, vehicle_id: null, primary_image: 0 } : item));
+      setMessage('Vehicle record removed. Its photos are still safe in the upload inbox.');
+    } catch (error: any) {
+      setMessage(error.detail || 'Unable to remove this vehicle record.');
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const validate = async () => {
+    setBusy('Checking required fields…');
+    try {
+      setWarnings(await api(`/batches/${batch.batch_id}/validate`));
+      setMessage('Validation complete. Review only the items shown below.');
+    } catch (error: any) {
+      setMessage(error.detail || 'Validation failed.');
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const generate = async (kind: string) => {
+    setBusy(`Preparing ${kind} draft…`);
+    try {
+      const result = await api(`/batches/${batch.batch_id}/draft/${kind}`, { method: 'POST' });
+      setMessage(`${kind} draft is ready: ${result.validation_status}`);
+      await loadDashboard();
+    } catch (error: any) {
+      setWarnings(error.detail || error);
+      setMessage('Resolve blocking items before generating a draft.');
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const goNew = () => {
+    setBatch(newBatch());
+    setVehicles([]);
+    setUploads([]);
+    setWarnings({});
+    setMessage('Create one batch for the operation or reporting day.');
+    setTab('New Batch');
+  };
+
+  return (
+    <div className="app-shell">
+      <aside className="sidebar">
+        <div className="brand-lockup">
+          <div className="brand-mark"><ShieldCheck size={19} /></div>
+          <div><strong>GSCHPT</strong><span>REPORTING DESK</span></div>
+        </div>
+        <nav className="nav-list" aria-label="Main navigation">
+          {navItems.map(([name, Icon]) => (
+            <button key={name} className={tab === name ? 'nav-item active' : 'nav-item'} onClick={() => setTab(name)}>
+              <Icon size={17} /><span>{name}</span>
+            </button>
+          ))}
+        </nav>
+        <div className="privacy-badge"><LockKeyhole size={15} /><span>Private workspace<br /><small>Draft outputs only</small></span></div>
+      </aside>
+
+      <main className="main-content">
+        <header className="topbar">
+          <div className="mobile-brand"><div className="brand-mark"><ShieldCheck size={17} /></div><strong>GSCHPT</strong></div>
+          <div><div className="breadcrumb">OPERATIONS <span>/</span> {tab.toUpperCase()}</div><h1>{tab === 'Overview' ? 'Reporting dashboard' : tab}</h1></div>
+          <div className="topbar-right"><span className="manila-dot" /> Asia/Manila <span className="today">{new Date().toLocaleDateString()}</span><button className="mobile-menu" aria-label="Menu"><Menu size={19} /></button></div>
+        </header>
+
+        {busy && <div className="busy-bar"><LoaderCircle size={15} className="spin" /> {busy}<span>Local save in progress</span></div>}
+        {message && <div className="toast" role="status"><Check size={16} /><span>{message}</span><button aria-label="Dismiss message" onClick={() => setMessage('')}><X size={15} /></button></div>}
+
+        {tab === 'Overview' && <Overview dashboard={dashboard} openBatch={openBatch} newBatch={goNew} />}
+        {tab === 'New Batch' && <BatchForm batch={batch} setBatch={setBatch} save={saveBatch} busy={busy} />}
+        {tab === 'Batch' && (
+          <BatchWorkspace
+            batch={batch}
+            vehicles={vehicles}
+            uploads={uploads}
+            aiReview={aiReview}
+            aiResults={aiResults}
+            addVehicle={addVehicle}
+            uploadPhotos={uploadPhotos}
+            associatePhoto={associatePhoto}
+            makePrimary={makePrimary}
+            deleteUpload={deleteUpload}
+            attachDocument={attachDocument}
+            editVehicle={editVehicle}
+            deleteVehicle={deleteVehicle}
+            validate={validate}
+            warnings={warnings}
+            generate={generate}
+            busy={busy}
+          />
+        )}
+        {['Vehicle Records', 'Generated Drafts', 'Templates'].includes(tab) && (
+          <section className="empty-state card-surface"><div className="empty-icon"><Settings size={24} /></div><h2>{tab}</h2><p>Open a batch to review its records and private files. The workspace keeps your originals private and generates drafts only.</p>{tab === 'Generated Drafts' && (dashboard.recent_batches || []).map((item: any) => <button key={item.batch_id} className="link-button" onClick={() => openBatch(item.batch_id)}>Open {item.batch_id}<ArrowRight size={15} /></button>)}</section>
+        )}
+      </main>
+    </div>
+  );
+}
+
+function Overview({ dashboard, openBatch, newBatch }: any) {
+  return <>
+    <section className="hero-panel">
+      <div className="hero-copy"><div className="kicker"><span className="kicker-dot" /> REPORT PREPARATION</div><h2>Move from <em>collected files</em> to a clean draft.</h2><p>Upload the operation’s photos once, match them to vehicle records, then generate your daily or weekly report.</p><button className="button button-primary" onClick={newBatch}><Plus size={17} /> Start a batch <ArrowRight size={16} /></button></div>
+      <div className="hero-orbit"><div className="orbit-ring ring-one" /><div className="orbit-ring ring-two" /><div className="orbit-core"><FileCheck2 size={32} /><span>Draft<br />ready</span></div></div>
+    </section>
+    <div className="stat-strip"><Stat label="Total batches" value={dashboard.total_batches || 0} icon={<LayoutDashboard size={17} />} /><Stat label="Drafts generated" value={dashboard.draft_reports || 0} icon={<FileText size={17} />} /><Stat label="Vehicles to review" value={dashboard.records_review || 0} icon={<Car size={17} />} /></div>
+    <section className="card-surface recent-card"><div className="section-title"><div><div className="kicker">RECENT ACTIVITY</div><h2>Recent batches</h2></div><button className="quiet-button" onClick={newBatch}><Plus size={15} /> New batch</button></div>{(dashboard.recent_batches || []).length ? (dashboard.recent_batches || []).map((item: any) => <div className="recent-row" key={item.batch_id}><div className="batch-avatar">{item.batch_id.slice(-2)}</div><div className="recent-copy"><strong>{item.title || item.batch_id}</strong><span>{item.batch_id} · {item.location} · prepared {item.preparation_date}</span></div><span className="status-chip">Draft</span><button className="link-button" onClick={() => openBatch(item.batch_id)}>Open <ArrowRight size={15} /></button></div>) : <div className="blank-state"><ImagePlus size={22} /><p>No batches yet. Start with one operation or reporting day.</p></div>}</section>
+  </>;
+}
+
+function Stat({ label, value, icon }: any) {
+  return <div className="stat-card"><div className="stat-icon">{icon}</div><div><span>{label}</span><strong>{value}</strong></div></div>;
+}
+
+function BatchForm({ batch, setBatch, save, busy }: any) {
+  return <section className="form-layout"><div className="form-intro"><div className="kicker"><span className="kicker-dot" /> STEP 1 OF 3</div><h2>Create one operation batch.</h2><p>Keep all files from the same operation together. You can add vehicle records after the photos are safely uploaded.</p><div className="process-note"><CircleHelp size={17} /><span><strong>Preparation date</strong> is recorded automatically in Asia/Manila. It is separate from the incident date.</span></div></div><section className="card-surface form-card"><div className="card-heading"><div><span className="step-number">01</span><div><h3>Batch details</h3><p>Only the incident facts needed to start.</p></div></div></div><form onSubmit={save}><Field label="Batch ID" value={batch.batch_id} required onChange={(value: string) => setBatch({ ...batch, batch_id: value })} placeholder="GSCHPT-2026-001" /><Field label="Short title or reference" value={batch.title} onChange={(value: string) => setBatch({ ...batch, title: value })} placeholder="Weekly recovery operations" /><div className="field-grid"><Field label="Incident date" type="date" value={batch.incident_date} required onChange={(value: string) => setBatch({ ...batch, incident_date: value })} /><Field label="Incident time" type="time" value={batch.incident_time} required onChange={(value: string) => setBatch({ ...batch, incident_time: value })} /><Field label="Weekly period start" type="date" value={batch.period_start} onChange={(value: string) => setBatch({ ...batch, period_start: value })} /><Field label="Weekly period end" type="date" value={batch.period_end} onChange={(value: string) => setBatch({ ...batch, period_end: value })} /></div><Field label="Incident / recovery location" value={batch.location} required onChange={(value: string) => setBatch({ ...batch, location: value })} placeholder="Barangay, city, province" /><FieldArea label="Operational information" value={batch.operational_info} onChange={(value: string) => setBatch({ ...batch, operational_info: value })} placeholder="Optional count or operation notes" /><FieldArea label="Notes" value={batch.notes} onChange={(value: string) => setBatch({ ...batch, notes: value })} placeholder="Optional" /><button className="button button-primary" disabled={Boolean(busy)}>{busy || 'Save and continue'} <ArrowRight size={16} /></button></form></section></section>;
+}
+
+function Field({ label, value, onChange, type = 'text', required = false, placeholder = '' }: any) {
+  return <label className="field-label">{label}{required && <span className="required-mark">Required</span>}<input required={required} type={type} value={value || ''} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} /></label>;
+}
+
+function FieldArea({ label, value, onChange, placeholder }: any) {
+  return <label className="field-label">{label}<textarea value={value || ''} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} /></label>;
+}
+
+function BatchWorkspace(props: any) {
+  const { batch, vehicles, uploads, aiReview, aiResults, addVehicle, uploadPhotos, associatePhoto, makePrimary, deleteUpload, attachDocument, editVehicle, deleteVehicle, validate, warnings, generate, busy } = props;
+  const photos = uploads.filter((item: UploadRecord) => item.kind === 'PHOTO');
+  const documents = uploads.filter((item: UploadRecord) => item.kind === 'DOCUMENT');
+  const blocking = warnings.blocking || [];
+  const review = warnings.review || [];
+  return <section className="workspace-page">
+    <div className="workspace-heading"><div><div className="kicker"><span className="kicker-dot" /> BATCH / {batch.batch_id}</div><h2>{batch.title || 'Untitled operation'}</h2><p>{batch.incident_date} at {batch.incident_time} · {batch.location} <span className="heading-separator">•</span> report period {batch.period_start || 'not set'} to {batch.period_end || 'not set'}</p></div><span className="draft-badge"><span /> Draft</span></div>
+    <div className="stepper"><Step active done={photos.length > 0} number="1" title="Upload photos" /><div className="step-line" /><Step active={vehicles.length > 0} done={vehicles.length > 0} number="2" title="Match records" /><div className="step-line" /><Step active={Boolean(warnings.can_generate)} done={false} number="3" title="Generate drafts" /></div>
+    <div className="workspace-columns">
+      <div className="workspace-main">
+        <section className="card-surface upload-card"><div className="card-heading"><div><span className="step-number">01</span><div><h3>Upload all vehicle photos</h3><p>Do this once. You can match photos after everything is saved.</p></div></div><span className="count-pill">{photos.length} photo{photos.length === 1 ? '' : 's'}</span></div><label className="dropzone"><div className="dropzone-icon"><Upload size={21} /></div><div><strong>Select multiple photos</strong><span>JPG, PNG or WebP · up to 20 MB each</span></div><span className="button button-secondary small-button">Choose files</span><input type="file" multiple accept="image/jpeg,image/png,image/webp" onChange={uploadPhotos} hidden /></label><p className="helper-line"><LockKeyhole size={14} /> Files are stored privately. <strong>Do not add ID/license files here.</strong> Add those only inside the vehicle they belong to.</p>{aiReview.state !== 'idle' && <AiStatus review={aiReview} />}{photos.length > 0 && <div className="file-list">{photos.map((photo: UploadRecord) => <PhotoRow key={photo.id} photo={photo} vehicles={vehicles} result={aiResults[photo.id]} associate={associatePhoto} makePrimary={makePrimary} remove={deleteUpload} />)}</div>}{documents.length > 0 && <div className="document-summary"><Paperclip size={15} /><span>{documents.length} optional document{documents.length === 1 ? '' : 's'} attached to vehicle records</span></div>}</section>
+
+        <section className="card-surface vehicle-card-section"><div className="card-heading"><div><span className="step-number">02</span><div><h3>Match and complete vehicles</h3><p>One record per actual vehicle — never one record per photo.</p></div></div><button className="button button-secondary small-button" onClick={addVehicle} disabled={Boolean(busy)}><Plus size={15} /> Add vehicle</button></div>{vehicles.length === 0 ? <div className="vehicle-empty"><div className="vehicle-empty-icon"><Car size={24} /></div><div><strong>Upload first, then add one record per vehicle.</strong><p>This keeps duplicate records out of your batch. Your photos are already safe above.</p></div><button className="link-button" onClick={addVehicle}>Add first vehicle <ArrowRight size={15} /></button></div> : <div className="vehicle-list">{vehicles.map((vehicle: Vehicle, index: number) => <VehicleCard key={vehicle.id} vehicle={vehicle} index={index} uploads={uploads} onSave={editVehicle} onDelete={deleteVehicle} attachDocument={attachDocument} busy={busy} />)}</div>}</section>
+      </div>
+      <aside className="generation-panel"><div className="generation-top"><div className="kicker"><span className="kicker-dot" /> STEP 3 OF 3</div><h3>Check, then generate</h3><p>Validation is instant and local. AI is not triggered by these buttons.</p></div><button className="button button-secondary full-button" onClick={validate} disabled={Boolean(busy)}><ScanSearch size={16} /> Check required fields</button>{blocking.length > 0 && <div className="validation-box error-box"><strong><AlertCircle size={15} /> Needs attention</strong>{blocking.map((item: string) => <span key={item}>{item}</span>)}</div>}{review.length > 0 && <div className="validation-box review-box"><strong><CircleHelp size={15} /> Review before submitting</strong>{review.map((item: string) => <span key={item}>{item}</span>)}</div>}{!blocking.length && !review.length && warnings.can_generate && <div className="validation-box success-box"><strong><Check size={15} /> Ready for draft generation</strong><span>All required fields are present.</span></div>}<div className="draft-actions"><button className="draft-button" onClick={() => generate('TXT')} disabled={Boolean(busy)}><FileText size={16} /><span><strong>Daily TXT</strong><small>Fast text draft</small></span><ArrowRight size={15} /></button><button className="draft-button" onClick={() => generate('DOCX')} disabled={Boolean(busy)}><FileCheck2 size={16} /><span><strong>Weekly DOCX</strong><small>Uses your master template</small></span><ArrowRight size={15} /></button><button className="draft-button" onClick={() => generate('PPTX')} disabled={Boolean(busy)}><Send size={16} /><span><strong>Weekly PPTX</strong><small>Uses your master template</small></span><ArrowRight size={15} /></button></div><div className="ai-boundary"><Sparkles size={15} /><div><strong>AI review happens after upload</strong><span>Matching, saving, validation and draft generation do not call AI.</span></div></div></aside>
+    </div>
+  </section>;
+}
+
+function Step({ number, title, active, done }: any) {
+  return <div className={active ? 'step active' : 'step'}><span className={done ? 'step-circle done' : 'step-circle'}>{done ? <Check size={13} /> : number}</span><span>{title}</span></div>;
+}
+
+function AiStatus({ review }: any) {
+  const finished = review.state === 'done';
+  return <div className={finished && !review.errors ? 'ai-status complete' : 'ai-status'}><div className="ai-status-icon">{finished ? <Check size={15} /> : <LoaderCircle size={15} className="spin" />}</div><div><strong>{finished ? 'Photo review finished' : 'Photo review is running in the background'}</strong><span>{review.done} of {review.total} files reviewed{review.errors ? ` · ${review.errors} unavailable` : ''}. You can keep matching photos while this runs.</span></div></div>;
+}
+
+function PhotoRow({ photo, vehicles, result, associate, makePrimary, remove }: any) {
+  const summary = result ? (typeof result === 'string' ? result : result.summary || result.description || result.suggestion || 'Review result available') : '';
+  return <div className="photo-row"><div className="photo-thumb"><ImagePlus size={17} /></div><div className="photo-details"><strong>{photo.filename}</strong><span>{photo.primary_image ? 'Primary photo' : photo.vehicle_id ? 'Matched to a vehicle' : 'Needs matching'}{summary ? ` · ${summary}` : ''}</span></div><select aria-label={`Match ${photo.filename} to a vehicle`} value={photo.vehicle_id || ''} onChange={(event) => associate(photo.id, event.target.value)}><option value="">Unmatched</option>{vehicles.map((vehicle: Vehicle, index: number) => <option key={vehicle.id} value={vehicle.id}>{index + 1}. {vehicle.category} · {vehicle.plate_or_sticker || 'No plate yet'}</option>)}</select>{photo.vehicle_id && <button className={photo.primary_image ? 'mini-action selected' : 'mini-action'} title="Use as primary photo" onClick={() => makePrimary(photo)}><Check size={14} /></button>}<button className="icon-button danger" aria-label={`Remove ${photo.filename}`} onClick={() => remove(photo.id)}><Trash2 size={15} /></button></div>;
+}
+
+function VehicleCard({ vehicle, index, uploads, onSave, onDelete, attachDocument, busy }: any) {
+  const [draft, setDraft] = useState<Vehicle>(vehicle);
+  useEffect(() => setDraft(vehicle), [vehicle]);
+  const vehiclePhotos = uploads.filter((item: UploadRecord) => item.kind === 'PHOTO' && item.vehicle_id === vehicle.id);
+  const vehicleDocuments = uploads.filter((item: UploadRecord) => item.kind === 'DOCUMENT' && item.vehicle_id === vehicle.id);
+  const update = (key: keyof Vehicle, value: string) => setDraft((current) => ({ ...current, [key]: value }));
+  return <article className="vehicle-record"><div className="vehicle-record-head"><div className="record-index">{String(index + 1).padStart(2, '0')}</div><div><div className="record-title"><strong>Vehicle {index + 1}</strong><span className="category-chip">{draft.category || 'MC'}</span></div><span className="record-subtitle">{vehiclePhotos.length} matched photo{vehiclePhotos.length === 1 ? '' : 's'} · {vehicleDocuments.length} optional document{vehicleDocuments.length === 1 ? '' : 's'}</span></div><span className={draft.review_status === 'Reviewed' ? 'review-chip done' : 'review-chip'}>{draft.review_status === 'Reviewed' ? 'Reviewed' : 'Needs details'}</span><button className="icon-button danger record-delete" title="Remove vehicle record" aria-label="Remove vehicle record" onClick={() => onDelete(vehicle.id)}><Trash2 size={15} /></button></div><div className="vehicle-fields"><label>Category<select value={draft.category || 'MC'} onChange={(event) => update('category', event.target.value)}><option value="MC">MC · Motorcycle</option><option value="MV">MV · Motor vehicle</option></select></label><label>Make<input value={draft.make || ''} placeholder="e.g. Honda" onChange={(event) => update('make', event.target.value)} /></label><label>Model / type<input value={draft.model || ''} placeholder="e.g. Click 125" onChange={(event) => update('model', event.target.value)} /></label><label>Plate / sticker<input value={draft.plate_or_sticker || ''} placeholder="Optional" onChange={(event) => update('plate_or_sticker', event.target.value)} /></label><label>Recovery date<input type="date" value={draft.recovery_date || ''} onChange={(event) => update('recovery_date', event.target.value)} /></label><label>Recovery place<input value={draft.recovery_place || ''} placeholder="Location" onChange={(event) => update('recovery_place', event.target.value)} /></label></div><div className="vehicle-record-actions"><button className="button button-secondary small-button" onClick={() => onSave(draft)} disabled={Boolean(busy)}><Check size={14} /> Save details</button><details className="optional-details"><summary><Paperclip size={14} /> Optional identity document</summary><div className="optional-copy">Only add a possessor ID/license if you have it. This is not required to continue or generate a draft.</div><label className="document-upload"><Upload size={14} /> {vehicleDocuments.length ? 'Add another document' : 'Choose ID/license file'}<input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" hidden onChange={(event) => attachDocument(vehicle.id, event)} /></label></details><span className="photo-count"><ImagePlus size={14} /> {vehiclePhotos.length} photo{vehiclePhotos.length === 1 ? '' : 's'} matched</span></div></article>;
+}
+
+createRoot(document.getElementById('root')!).render(<App />);
