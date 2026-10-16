@@ -1,20 +1,33 @@
 # GSCHPT Reporting Dashboard — Phase 1
 
-A private, locally runnable foundation for manually entering impoundment/recovery records and generating **draft-only** TXT, DOCX, and PPTX reports. The repository contained no original report templates, so the app clearly labels safe fallback outputs and never claims to preserve missing formatting.
+Private, locally runnable reporting dashboard for manually reviewed GSCHPT operational records. It supports persistent batches, manual vehicle records, unsorted private photo uploads, manual photo-to-vehicle association, manual possessor ID/license attachment, validation, and draft-only TXT/DOCX/PPTX generation.
 
-## Scope
+## Implemented
 
-Implemented: responsive React/TypeScript/Vite dashboard, FastAPI backend, SQLite data layer, Asia/Manila preparation date, batch and vehicle APIs, validation warnings, private server-side draft storage, template upload/version records, and draft generation using `python-docx`, `python-pptx`, and UTF-8 text.
+- React + TypeScript + Vite responsive dashboard.
+- FastAPI backend with SQLite development persistence.
+- Development authentication gate and server-side authorization on protected endpoints.
+- Batch creation/editing with Asia/Manila preparation date, separate incident date/time, location, title, notes, and weekly reporting period.
+- Vehicle record create/edit/delete with MC/MV, recovery, possessor/owner, violation, review, and template-oriented fields.
+- Multiple JPG/JPEG/PNG/WebP photo upload in one request, private storage, unassigned upload listing, manual vehicle association, primary-image flag, and protected download.
+- Manual possessor ID/license attachment per selected vehicle, attachment type, private storage, and protected download.
+- Blocking and review validation warnings for missing fields, invalid periods, missing photos/documents, duplicate plate numbers, missing identifiers, and narrative count conflicts.
+- Separate draft generation buttons for daily TXT, weekly DOCX, and weekly PPTX.
+- Generated draft metadata, validation status, template version, timestamps, and protected download.
+- No Gemini, automatic grouping/extraction, email, Viber, report submission, or public sharing.
 
-Not implemented by design: Gemini/image analysis, automatic grouping or ID/license matching, bulk photo processing, email/Viber sending, publishing, or public file sharing.
+## Important template limitation
 
-## Run locally
+The connected repository did not contain the authoritative GSCHPT TXT, DOCX, or PPTX files. The `templates/` directory therefore contains only a marker. The application has protected template upload/version infrastructure and will use an active uploaded template when supplied. Until then, DOCX/PPTX use explicitly labeled `fallback-safe-v1` layouts. These fallbacks do **not** claim to preserve unavailable original formatting.
+
+## Local setup
 
 ```bash
-python3 -m venv .venv && source .venv/bin/activate
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -r backend/requirements.txt
-cp .env.example .env  # change GSCHPT_DEV_PASSWORD for any real use
-uvicorn backend.app.main:app --reload --port 8000
+cp .env.example .env
+uvicorn backend.app.main:app --host 0.0.0.0 --port 8000
 ```
 
 In a second terminal:
@@ -25,7 +38,15 @@ npm install
 npm run dev
 ```
 
-Open the Vite URL (usually `http://localhost:5173`). The development dashboard sends `X-Dev-User: admin`; this is only a safe development gate, not production authentication. Before production, replace it with a real identity provider/session system and HTTPS.
+Open the Vite URL, normally `http://localhost:5173`. The development dashboard sends `X-Dev-User: admin`. This is a development gate, not production-grade identity management.
+
+## Environment variables
+
+- `GSCHPT_DB_PATH` — SQLite path, default `./storage/gschpt.db`.
+- `GSCHPT_STORAGE_DIR` — generated draft directory.
+- `GSCHPT_PRIVATE_STORAGE_DIR` — private photo/document storage directory.
+- `GSCHPT_MAX_UPLOAD_MB` — documented upload limit; current safe default is 20 MB per file.
+- `GSCHPT_DEV_USERNAME` / `GSCHPT_DEV_PASSWORD` — reserved development configuration; replace the header gate with real authentication before deployment.
 
 ## Tests
 
@@ -34,22 +55,25 @@ PYTHONPATH=backend pytest -q backend/tests
 cd frontend && npm run build
 ```
 
-Tests cover batch creation, Manila preparation date, validation warnings, and opening generated TXT/DOCX/PPTX files. Test data is fictional.
+Tests use synthetic records and cover authentication, batch creation/editing, vehicle CRUD, multiple photo upload, batch-to-photo association, vehicle-to-document association, private download, validation, Manila date handling, and TXT/DOCX/PPTX generation.
 
-## Templates
+## Template installation
 
-Place authoritative files in `templates/` or upload them from the Templates workflow/API. Accepted extensions are `.txt`, `.docx`, and `.pptx`, with a 20 MB limit and server-side filenames. Since no source templates were present in the connected repository, initial generated DOCX/PPTX files use an explicit `fallback-safe-v1` layout and are marked as drafts. Once originals are uploaded, the next generation service extension should copy the selected template before replacing only safe mapped locations.
+Upload authoritative `.txt`, `.docx`, and `.pptx` templates to the protected `POST /api/templates` endpoint using the `X-Dev-User` header during development. Templates are stored server-side, versioned, and kept unchanged; generation reads from the selected master. Inspect the actual source files before adding field mappings. Do not commit operational reports, photos, ID documents, or secrets.
 
-## API highlights
+## Useful API routes
 
-- `POST /api/batches`, `PUT /api/batches/{batch_id}`
-- `POST /api/batches/{batch_id}/vehicles`, `PUT /api/vehicles/{id}`
+- `POST/PUT /api/batches` and `/api/batches/{batch_id}`
+- `POST/PUT/DELETE /api/batches/{batch_id}/vehicles` and `/api/vehicles/{id}`
+- `POST /api/batches/{batch_id}/photos`
+- `PATCH /api/uploads/{id}/associate`
+- `POST /api/vehicles/{id}/attachments`
 - `GET /api/batches/{batch_id}/validate`
 - `POST /api/batches/{batch_id}/draft/{TXT|DOCX|PPTX}`
-- `POST /api/templates`, `GET /api/drafts`, `GET /api/drafts/{id}/download`
+- `GET /api/drafts/{id}/download` and `/api/uploads/{id}/download`
 
-All protected endpoints require `X-Dev-User` during development. No generated file is sent anywhere automatically.
+## Deployment and remaining configuration
 
-## Remaining before later phases
+No hosting or Supabase credentials were available in the repository. Deployment is therefore not claimed. A real deployment needs a private backend host for FastAPI, a managed PostgreSQL database, private object storage, HTTPS, real authentication/session handling, authorization tied to the authenticated user, secure secret injection, backups, and non-public frontend-to-backend configuration. The SQLite/private-folder setup is development-only.
 
-Add real authentication/authorization, audit logging with PII minimization, authoritative templates and field mappings, bulk photo upload, automatic file detection, Gemini analysis, and explicit manual ID/license association review.
+Before the next phase, supply the original templates and validate their structure. Then implement field mappings and fidelity checks against the actual files. The exact next step for Gemini is to add a review-only analysis service behind a feature flag after manual uploads and associations are stable; it must never create official facts or silently associate files.
