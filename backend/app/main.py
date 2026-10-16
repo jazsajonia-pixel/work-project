@@ -10,9 +10,10 @@ from .db import conn, execute, get_row, list_rows, now
 from .services.report_generator import validate_batch, daily_txt, weekly_docx, weekly_pptx
 ROOT=Path(__file__).resolve().parents[2]; STORAGE=Path(os.getenv('GSCHPT_STORAGE_DIR',ROOT/'generated_drafts')); PRIVATE=Path(os.getenv('GSCHPT_PRIVATE_STORAGE_DIR',ROOT/'storage'/'private')); TEMPLATE_DIR=ROOT/'templates'; STORAGE.mkdir(exist_ok=True); PRIVATE.mkdir(parents=True,exist_ok=True); TEMPLATE_DIR.mkdir(exist_ok=True)
 app=FastAPI(title='GSCHPT Reporting Dashboard API'); app.add_middleware(CORSMiddleware,allow_origins=['http://localhost:5173','http://127.0.0.1:5173'],allow_methods=['*'],allow_headers=['*'])
-IMAGE_TYPES={'.jpg':'image/jpeg','.jpeg':'image/jpeg','.png':'image/png','.webp':'image/webp'}; DOC_TYPES={'.pdf':'application/pdf','.jpg':'image/jpeg','.jpeg':'image/jpeg','.png':'image/png','.webp':'image/webp'}; MAX_UPLOAD=20*1024*1024
+IMAGE_TYPES={'.jpg':'image/jpeg','.jpeg':'image/jpeg','.png':'image/png','.webp':'image/webp'}; DOC_TYPES={'.pdf':'application/pdf','.jpg':'image/jpeg','.jpeg':'image/jpeg','.png':'image/png','.webp':'image/webp'}; MAX_UPLOAD=int(os.getenv('GSCHPT_MAX_UPLOAD_MB','20'))*1024*1024
 def auth(user):
-    if not user: raise HTTPException(401,'Development authentication required. Set X-Dev-User header.')
+    expected=os.getenv('GSCHPT_DEV_USERNAME','admin')
+    if not user or user!=expected: raise HTTPException(401,'Development authentication failed. Use the configured development user.')
 def batch_or_404(batch_id):
     b=get_row('SELECT * FROM batches WHERE batch_id=?',(batch_id,));
     if not b: raise HTTPException(404,'Batch not found')

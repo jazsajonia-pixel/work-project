@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-os.environ['GSCHPT_DB_PATH']='/tmp/gschpt_test.db'; os.environ['GSCHPT_PRIVATE_STORAGE_DIR']='/tmp/gschpt_private'
+os.environ['GSCHPT_DB_PATH']='/tmp/gschpt_test.db'; os.environ['GSCHPT_PRIVATE_STORAGE_DIR']='/tmp/gschpt_private'; os.environ['GSCHPT_DEV_USERNAME']='test'
 from fastapi.testclient import TestClient
 from app.main import app
 client=TestClient(app); H={'X-Dev-User':'test'}

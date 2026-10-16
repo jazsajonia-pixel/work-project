@@ -2,7 +2,7 @@ import React,{useEffect,useState} from 'react';
 import {createRoot} from 'react-dom/client';
 import {LayoutDashboard,Plus,FileText,Settings,Car,AlertTriangle,ShieldCheck,Upload,Trash2,Paperclip} from 'lucide-react';
 import './style.css';
-const API='http://localhost:8000/api'; const H={'X-Dev-User':'admin'};
+const API=(import.meta.env.VITE_API_BASE_URL||'http://localhost:8000/api').replace(/\/$/,''); const H={'X-Dev-User':import.meta.env.VITE_DEV_USER||'admin'};
 async function api(path:string,options:any={}){const r=await fetch(API+path,{headers:{...H,...(options.body instanceof FormData?{}:{'Content-Type':'application/json'})},...options});const d=await r.json().catch(()=>({}));if(!r.ok)throw d;return d}
 type Batch={batch_id:string,title:string,preparation_date:string,incident_date:string,incident_time:string,location:string,period_start:string,period_end:string,operational_info:string,notes:string,status:string};
 const empty:Batch={batch_id:'',title:'',preparation_date:'',incident_date:'',incident_time:'',location:'',period_start:'',period_end:'',operational_info:'',notes:'',status:'Draft'};

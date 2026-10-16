@@ -47,6 +47,8 @@ Open the Vite URL, normally `http://localhost:5173`. The development dashboard s
 - `GSCHPT_PRIVATE_STORAGE_DIR` — private photo/document storage directory.
 - `GSCHPT_MAX_UPLOAD_MB` — documented upload limit; current safe default is 20 MB per file.
 - `GSCHPT_DEV_USERNAME` / `GSCHPT_DEV_PASSWORD` — reserved development configuration; replace the header gate with real authentication before deployment.
+- `VITE_API_BASE_URL` — frontend build-time API base URL, defaulting to `http://localhost:8000/api`; set it in `frontend/.env.local` when frontend and backend are hosted separately.
+- `VITE_DEV_USER` — frontend development header value; keep it equal to `GSCHPT_DEV_USERNAME` for local use. This header gate must be replaced by real authentication before production.
 
 ## Tests
 
