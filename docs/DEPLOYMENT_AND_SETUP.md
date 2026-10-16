@@ -25,7 +25,7 @@ Do not commit `.env`, operational records, uploaded photos, ID documents, genera
 
 ## Environment variables
 
-Backend variables: `DATABASE_URL`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `GSCHPT_DB_PATH`, `GSCHPT_STORAGE_DIR`, `GSCHPT_PRIVATE_STORAGE_DIR`, `GSCHPT_TEMPLATE_DIR`, `GSCHPT_MAX_UPLOAD_MB`, `GSCHPT_ALLOWED_ORIGINS`, `GSCHPT_DEV_USERNAME`, and `GSCHPT_DEV_PASSWORD` placeholder configuration. Frontend build variables: `VITE_API_BASE_URL` and `VITE_DEV_USER`. The current frontend header gate must match the configured backend development user. Keep `GEMINI_API_KEY` server-side; never put it in the frontend bundle, source control, or logs.
+Backend variables: `DATABASE_URL`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `MAKE_DRAFT_WEBHOOK_URL`, `GSCHPT_DB_PATH`, `GSCHPT_STORAGE_DIR`, `GSCHPT_PRIVATE_STORAGE_DIR`, `GSCHPT_TEMPLATE_DIR`, `GSCHPT_MAX_UPLOAD_MB`, `GSCHPT_ALLOWED_ORIGINS`, `GSCHPT_DEV_USERNAME`, and `GSCHPT_DEV_PASSWORD` placeholder configuration. Frontend build variables: `VITE_API_BASE_URL` and `VITE_DEV_USER`. The current frontend header gate must match the configured backend development user. Keep `GEMINI_API_KEY` and `MAKE_DRAFT_WEBHOOK_URL` server-side; never put them in the frontend bundle, source control, or logs.
 
 ## Start services
 
@@ -65,6 +65,8 @@ cd frontend && npm run build
 The application is deployed at [gschpt-reporting.vercel.app](https://gschpt-reporting.vercel.app) from the `feature/gschpt-phase1` branch. Vercel serves the Vite build and Python API function; Neon provides PostgreSQL persistence. The deployment was smoke-tested with frontend `200`, `/api/health` `200` returning `{"ok":true,"database":"connected","storage":"ephemeral"}`, unauthorized dashboard `401`, authorized dashboard `200`, and same-origin CORS preflight `200`.
 
 Gemini is connected through an encrypted Vercel environment variable. Image analysis is explicit and review-only through `POST /api/uploads/{id}/analyze`; it does not auto-associate images or create official facts. The test suite covers the unconfigured-key failure path without sending synthetic fixtures to the external model.
+
+Make.com receives a `gschpt.draft.generated` JSON event after a draft is created. The callback is non-blocking and metadata-only; Make outages do not fail draft generation.
 
 This is not yet an operational production baseline: authentication is still the development header gate, and Vercel `/tmp` storage is ephemeral. Move photos, documents, templates, and generated drafts to durable private object storage; then add real identity/roles, signed or authorized downloads, malware scanning, backups, monitoring, retention, and recovery procedures.
 

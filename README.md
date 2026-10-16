@@ -19,6 +19,7 @@ The maintained documentation system is indexed at [`docs/README.md`](docs/README
 - Blocking and review validation warnings for missing fields, invalid periods, missing photos/documents, duplicate plate numbers, missing identifiers, and narrative count conflicts.
 - Separate draft generation buttons for daily TXT, weekly DOCX, and weekly PPTX.
 - Explicit, review-only Gemini photo suggestion endpoint; it never auto-associates photos or creates official facts.
+- Non-blocking Make.com event after draft generation, sending report metadata only.
 - Generated draft metadata, validation status, template version, timestamps, and protected download.
 - No Gemini, automatic grouping/extraction, email, Viber, report submission, or public sharing.
 
@@ -77,6 +78,7 @@ Upload authoritative `.txt`, `.docx`, and `.pptx` templates to the protected `PO
 - `PATCH /api/uploads/{id}/associate`
 - `POST /api/vehicles/{id}/attachments`
 - `POST /api/uploads/{id}/analyze`
+- `MAKE_DRAFT_WEBHOOK_URL` receives `gschpt.draft.generated` metadata when configured.
 - `GET /api/batches/{batch_id}/validate`
 - `POST /api/batches/{batch_id}/draft/{TXT|DOCX|PPTX}`
 - `GET /api/drafts/{id}/download` and `/api/uploads/{id}/download`

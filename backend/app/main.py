@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 from .db import conn, execute, get_row, list_rows, now
 from .services.report_generator import validate_batch, daily_txt, weekly_docx, weekly_pptx
 from .services.gemini_analysis import analyze_image
+from .services.make_webhook import send_draft_event
 ROOT=Path(__file__).resolve().parents[2]; RUNTIME_ROOT=Path('/tmp') if os.getenv('VERCEL') else ROOT; STORAGE=Path(os.getenv('GSCHPT_STORAGE_DIR',RUNTIME_ROOT/'generated_drafts')); PRIVATE=Path(os.getenv('GSCHPT_PRIVATE_STORAGE_DIR',RUNTIME_ROOT/'storage'/'private')); TEMPLATE_DIR=Path(os.getenv('GSCHPT_TEMPLATE_DIR',ROOT/'templates')); STORAGE.mkdir(parents=True,exist_ok=True); PRIVATE.mkdir(parents=True,exist_ok=True); TEMPLATE_DIR.mkdir(parents=True,exist_ok=True)
 ALLOWED_ORIGINS=[x.strip() for x in os.getenv('GSCHPT_ALLOWED_ORIGINS','http://localhost:5173,http://127.0.0.1:5173').split(',') if x.strip()]
 app=FastAPI(title='GSCHPT Reporting Dashboard API'); app.add_middleware(CORSMiddleware,allow_origins=ALLOWED_ORIGINS,allow_methods=['*'],allow_headers=['*'])
@@ -115,7 +116,7 @@ def draft(batch_id:str,kind:str,x_dev_user:str|None=Header(None)):
     if kind=='TXT': path.write_text(daily_txt(b,vs),encoding='utf-8')
     elif kind=='DOCX': weekly_docx(path,b,vs,template)
     else: weekly_pptx(path,b,vs,template)
-    status='Passed — draft only' if not result['review'] else 'Generated — review warnings'; execute('INSERT INTO generated_reports(batch_id,file_type,filename,path,template_version,validation_status,generated_at) VALUES(?,?,?,?,?,?,?)',(batch_id,kind,filename,str(path),active['version'] if active else 'fallback-safe-v1',status,now())); return {'filename':filename,'validation_status':status,'blocking':[],'review':result['review']}
+    status='Passed — draft only' if not result['review'] else 'Generated — review warnings'; generated_at=now(); report_id=execute('INSERT INTO generated_reports(batch_id,file_type,filename,path,template_version,validation_status,generated_at) VALUES(?,?,?,?,?,?,?)',(batch_id,kind,filename,str(path),active['version'] if active else 'fallback-safe-v1',status,generated_at)); make_status=send_draft_event({'event':'gschpt.draft.generated','report_id':report_id,'batch_id':batch_id,'file_type':kind,'filename':filename,'template_version':active['version'] if active else 'fallback-safe-v1','validation_status':status,'generated_at':generated_at}); return {'report_id':report_id,'filename':filename,'validation_status':status,'make_webhook':make_status,'blocking':[],'review':result['review']}
 @app.get('/api/drafts')
 def drafts(x_dev_user:str|None=Header(None)): auth(x_dev_user); return list_rows('SELECT * FROM generated_reports ORDER BY id DESC')
 @app.get('/api/drafts/{report_id}/download')
