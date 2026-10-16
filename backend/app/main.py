@@ -9,7 +9,8 @@ from pydantic import BaseModel, Field
 from .db import conn, execute, get_row, list_rows, now
 from .services.report_generator import validate_batch, daily_txt, weekly_docx, weekly_pptx
 ROOT=Path(__file__).resolve().parents[2]; RUNTIME_ROOT=Path('/tmp') if os.getenv('VERCEL') else ROOT; STORAGE=Path(os.getenv('GSCHPT_STORAGE_DIR',RUNTIME_ROOT/'generated_drafts')); PRIVATE=Path(os.getenv('GSCHPT_PRIVATE_STORAGE_DIR',RUNTIME_ROOT/'storage'/'private')); TEMPLATE_DIR=Path(os.getenv('GSCHPT_TEMPLATE_DIR',ROOT/'templates')); STORAGE.mkdir(parents=True,exist_ok=True); PRIVATE.mkdir(parents=True,exist_ok=True); TEMPLATE_DIR.mkdir(parents=True,exist_ok=True)
-app=FastAPI(title='GSCHPT Reporting Dashboard API'); app.add_middleware(CORSMiddleware,allow_origins=['http://localhost:5173','http://127.0.0.1:5173'],allow_methods=['*'],allow_headers=['*'])
+ALLOWED_ORIGINS=[x.strip() for x in os.getenv('GSCHPT_ALLOWED_ORIGINS','http://localhost:5173,http://127.0.0.1:5173').split(',') if x.strip()]
+app=FastAPI(title='GSCHPT Reporting Dashboard API'); app.add_middleware(CORSMiddleware,allow_origins=ALLOWED_ORIGINS,allow_methods=['*'],allow_headers=['*'])
 IMAGE_TYPES={'.jpg':'image/jpeg','.jpeg':'image/jpeg','.png':'image/png','.webp':'image/webp'}; DOC_TYPES={'.pdf':'application/pdf','.jpg':'image/jpeg','.jpeg':'image/jpeg','.png':'image/png','.webp':'image/webp'}; MAX_UPLOAD=int(os.getenv('GSCHPT_MAX_UPLOAD_MB','20'))*1024*1024
 def auth(user):
     expected=os.getenv('GSCHPT_DEV_USERNAME','admin')
@@ -29,7 +30,12 @@ class VehicleIn(BaseModel):
 @app.on_event('startup')
 def startup(): conn().close()
 @app.get('/api/health')
-def health(): return {'ok':True}
+def health():
+    try:
+        row=get_row('SELECT 1 AS database_check')
+        return {'ok':True,'database':'connected' if row and row['database_check']==1 else 'unknown','storage':'ephemeral' if os.getenv('VERCEL') else 'local'}
+    except Exception as exc:
+        raise HTTPException(503,'Database unavailable') from exc
 @app.get('/api/dashboard')
 def dashboard(x_dev_user:str|None=Header(None)):
     auth(x_dev_user); return {'total_batches':get_row('SELECT COUNT(*) c FROM batches')['c'],'draft_reports':get_row('SELECT COUNT(*) c FROM generated_reports')['c'],'pending_vehicles':get_row("SELECT COUNT(*) c FROM vehicles WHERE review_status!='Reviewed'")['c'],'records_review':get_row("SELECT COUNT(*) c FROM vehicles WHERE review_status!='Reviewed'")['c'],'recent_batches':list_rows('SELECT * FROM batches ORDER BY id DESC LIMIT 5'),'templates':list_rows('SELECT * FROM templates ORDER BY file_type,id DESC')}

@@ -11,6 +11,7 @@ The maintained documentation system is indexed at [`docs/README.md`](docs/README
 - React + TypeScript + Vite responsive dashboard.
 - FastAPI backend with SQLite development persistence.
 - Development authentication gate and server-side authorization on protected endpoints.
+- Database-backed `/api/health` check with configurable CORS origins for local and hosted environments.
 - Batch creation/editing with Asia/Manila preparation date, separate incident date/time, location, title, notes, and weekly reporting period.
 - Vehicle record create/edit/delete with MC/MV, recovery, possessor/owner, violation, review, and template-oriented fields.
 - Multiple JPG/JPEG/PNG/WebP photo upload in one request, private storage, unassigned upload listing, manual vehicle association, primary-image flag, and protected download.

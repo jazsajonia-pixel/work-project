@@ -28,7 +28,9 @@ Observed: production build completed successfully. Vite emitted non-blocking `lu
 
 The audit created `AUDIT-001`, edited it, added and edited a vehicle, uploaded two photos, associated a photo, attached a fake license PDF, ran count-conflict validation, generated all three drafts, inspected TXT content, opened DOCX with `python-docx`, opened PPTX with `python-pptx`, and tested authorized/unauthorized downloads. All checks passed.
 
-## Test areas
+## Test layers
+
+The backend regression suite includes a database-backed health endpoint assertion. Local tests require the health response to report `database: connected` and `storage: local`; hosted smoke tests should confirm the same database status with `storage: ephemeral` until durable object storage is added.
 
 | Area | Current state |
 |---|---|

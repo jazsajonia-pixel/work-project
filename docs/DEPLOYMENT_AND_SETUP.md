@@ -25,7 +25,7 @@ Do not commit `.env`, operational records, uploaded photos, ID documents, genera
 
 ## Environment variables
 
-Backend variables: `DATABASE_URL`, `GSCHPT_DB_PATH`, `GSCHPT_STORAGE_DIR`, `GSCHPT_PRIVATE_STORAGE_DIR`, `GSCHPT_TEMPLATE_DIR`, `GSCHPT_MAX_UPLOAD_MB`, `GSCHPT_DEV_USERNAME`, and `GSCHPT_DEV_PASSWORD` placeholder configuration. Frontend build variables: `VITE_API_BASE_URL` and `VITE_DEV_USER`. The current frontend header gate must match the configured backend development user.
+Backend variables: `DATABASE_URL`, `GSCHPT_DB_PATH`, `GSCHPT_STORAGE_DIR`, `GSCHPT_PRIVATE_STORAGE_DIR`, `GSCHPT_TEMPLATE_DIR`, `GSCHPT_MAX_UPLOAD_MB`, `GSCHPT_ALLOWED_ORIGINS`, `GSCHPT_DEV_USERNAME`, and `GSCHPT_DEV_PASSWORD` placeholder configuration. Frontend build variables: `VITE_API_BASE_URL` and `VITE_DEV_USER`. The current frontend header gate must match the configured backend development user.
 
 ## Start services
 
@@ -43,7 +43,7 @@ cd frontend
 npm run dev -- --host 0.0.0.0 --port 5173
 ```
 
-Open `http://localhost:5173`. The API health endpoint is `http://localhost:8000/api/health`.
+Open `http://localhost:5173`. The API health endpoint is `http://localhost:8000/api/health`; it verifies a database query and reports whether storage is local or ephemeral.
 
 ## Database and storage
 
