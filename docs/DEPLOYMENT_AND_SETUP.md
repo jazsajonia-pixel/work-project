@@ -68,6 +68,8 @@ Gemini is connected through an encrypted Vercel environment variable. Image anal
 
 Make.com receives a `gschpt.draft.generated` JSON event after a draft is created. The active scenario is `GSCHPT Draft Generated Intake` (scenario ID `6656649`) with webhook ID `2942297`; a synthetic event returned HTTP `200` and a Make execution ID. The callback is non-blocking and metadata-only; Make outages do not fail draft generation.
 
+Weekly aggregation uses `POST /api/reports/weekly` with `period_start`, `period_end`, and `file_type` (`DOCX` or `PPTX`). A batch is included when its reporting interval overlaps the requested period; batches without an interval use their incident date. Each request rebuilds a period snapshot and stores it as a generated report.
+
 This is not yet an operational production baseline: authentication is still the development header gate, and Vercel `/tmp` storage is ephemeral. Move photos, documents, templates, and generated drafts to durable private object storage; then add real identity/roles, signed or authorized downloads, malware scanning, backups, monitoring, retention, and recovery procedures.
 
 ## Troubleshooting

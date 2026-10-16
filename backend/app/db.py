@@ -35,6 +35,16 @@ def list_rows(query,args=()):
     with conn() as c: return [dict(x) for x in c.execute(_sql(query),args).fetchall()]
 def get_row(query,args=()):
     with conn() as c: return rowdict(c.execute(_sql(query),args).fetchone())
+def weekly_batches(period_start, period_end):
+    return list_rows("SELECT * FROM batches WHERE COALESCE(NULLIF(period_start,''),incident_date)<=? AND COALESCE(NULLIF(period_end,''),incident_date)>=? ORDER BY incident_date, id",(period_end,period_start))
+def batch_vehicles(batch_ids):
+    if not batch_ids: return []
+    placeholders=','.join('?' for _ in batch_ids)
+    return list_rows(f'SELECT * FROM vehicles WHERE batch_id IN ({placeholders}) ORDER BY batch_id,id',tuple(batch_ids))
+def batch_uploads(batch_ids):
+    if not batch_ids: return []
+    placeholders=','.join('?' for _ in batch_ids)
+    return list_rows(f'SELECT * FROM uploads WHERE batch_id IN ({placeholders}) ORDER BY batch_id,id',tuple(batch_ids))
 def execute(query,args=()):
     with conn() as c:
         statement=_sql(query)

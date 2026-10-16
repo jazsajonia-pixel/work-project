@@ -6,8 +6,8 @@ from fastapi import FastAPI, HTTPException, UploadFile, File, Header, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
-from .db import conn, execute, get_row, list_rows, now
-from .services.report_generator import validate_batch, daily_txt, weekly_docx, weekly_pptx
+from .db import conn, execute, get_row, list_rows, now, weekly_batches, batch_vehicles, batch_uploads
+from .services.report_generator import validate_batch, daily_txt, weekly_docx, weekly_pptx, weekly_docx_aggregate, weekly_pptx_aggregate
 from .services.gemini_analysis import analyze_image
 from .services.make_webhook import send_draft_event
 ROOT=Path(__file__).resolve().parents[2]; RUNTIME_ROOT=Path('/tmp') if os.getenv('VERCEL') else ROOT; STORAGE=Path(os.getenv('GSCHPT_STORAGE_DIR',RUNTIME_ROOT/'generated_drafts')); PRIVATE=Path(os.getenv('GSCHPT_PRIVATE_STORAGE_DIR',RUNTIME_ROOT/'storage'/'private')); TEMPLATE_DIR=Path(os.getenv('GSCHPT_TEMPLATE_DIR',ROOT/'templates')); STORAGE.mkdir(parents=True,exist_ok=True); PRIVATE.mkdir(parents=True,exist_ok=True); TEMPLATE_DIR.mkdir(parents=True,exist_ok=True)
@@ -29,6 +29,8 @@ class BatchIn(BaseModel):
     batch_id:str=Field(min_length=2,max_length=80); title:str=''; incident_date:str; incident_time:str; location:str=Field(min_length=1); period_start:str=''; period_end:str=''; operational_info:str=''; notes:str=''; status:str='Draft'
 class VehicleIn(BaseModel):
     category:str; make:str=''; vehicle_type:str=''; model:str=''; plate_or_sticker:str=''; chassis_number:str=''; motor_number:str=''; color:str=''; recovery_date:str=''; recovery_place:str=''; recovering_unit:str=''; mode_of_recovery:str=''; violation:str=''; status:str='For review'; driver_name:str=''; driver_address:str=''; owner_name:str=''; owner_address:str=''; notes:str=''; review_status:str='Needs review'
+class WeeklyReportIn(BaseModel):
+    period_start:str=Field(pattern=r'^\d{4}-\d{2}-\d{2}$'); period_end:str=Field(pattern=r'^\d{4}-\d{2}-\d{2}$'); file_type:str=Field(pattern=r'^(?i:DOCX|PPTX)$')
 @app.on_event('startup')
 def startup(): conn().close()
 @app.get('/api/health')
@@ -117,6 +119,21 @@ def draft(batch_id:str,kind:str,x_dev_user:str|None=Header(None)):
     elif kind=='DOCX': weekly_docx(path,b,vs,template)
     else: weekly_pptx(path,b,vs,template)
     status='Passed — draft only' if not result['review'] else 'Generated — review warnings'; generated_at=now(); report_id=execute('INSERT INTO generated_reports(batch_id,file_type,filename,path,template_version,validation_status,generated_at) VALUES(?,?,?,?,?,?,?)',(batch_id,kind,filename,str(path),active['version'] if active else 'fallback-safe-v1',status,generated_at)); make_status=send_draft_event({'event':'gschpt.draft.generated','report_id':report_id,'batch_id':batch_id,'file_type':kind,'filename':filename,'template_version':active['version'] if active else 'fallback-safe-v1','validation_status':status,'generated_at':generated_at}); return {'report_id':report_id,'filename':filename,'validation_status':status,'make_webhook':make_status,'blocking':[],'review':result['review']}
+@app.post('/api/reports/weekly')
+def weekly_report(data:WeeklyReportIn,x_dev_user:str|None=Header(None)):
+    auth(x_dev_user)
+    if data.period_start>data.period_end: raise HTTPException(422,'Weekly period start must not be after its end.')
+    batches=weekly_batches(data.period_start,data.period_end)
+    if not batches: raise HTTPException(422,'No batches fall within the requested reporting period.')
+    ids=[b['batch_id'] for b in batches]; vehicles=batch_vehicles(ids); uploads=batch_uploads(ids); active_types={x['file_type'] for x in list_rows('SELECT * FROM templates WHERE active=1')}; blocking=[]; review=[]
+    for batch in batches:
+        result=validate_batch(batch,[v for v in vehicles if v['batch_id']==batch['batch_id']],[u for u in uploads if u['batch_id']==batch['batch_id']],active_types)
+        blocking.extend(f"{batch['batch_id']}: {message}" for message in result['blocking']); review.extend(f"{batch['batch_id']}: {message}" for message in result['review'])
+    if blocking: raise HTTPException(422,detail={'message':'Blocking validation errors must be resolved.','blocking':blocking,'review':review})
+    kind=data.file_type.upper(); active=get_row('SELECT * FROM templates WHERE file_type=? AND active=1 ORDER BY id DESC',(kind,)); template=Path(active['path']) if active and Path(active['path']).is_file() else None; key=f'{data.period_start}_TO_{data.period_end}'; ext='.docx' if kind=='DOCX' else '.pptx'; filename=f'WEEKLY_{key}{ext}'; path=STORAGE/filename
+    if kind=='DOCX': weekly_docx_aggregate(path,data.period_start,data.period_end,batches,vehicles,template)
+    else: weekly_pptx_aggregate(path,data.period_start,data.period_end,batches,vehicles,template)
+    status='Passed — weekly draft only' if not review else 'Generated — weekly review warnings'; generated_at=now(); scope=f'WEEKLY:{key}'; report_id=execute('INSERT INTO generated_reports(batch_id,file_type,filename,path,template_version,validation_status,generated_at) VALUES(?,?,?,?,?,?,?)',(scope,kind,filename,str(path),active['version'] if active else 'fallback-safe-v1',status,generated_at)); make_status=send_draft_event({'event':'gschpt.draft.generated','report_id':report_id,'batch_id':scope,'file_type':kind,'filename':filename,'template_version':active['version'] if active else 'fallback-safe-v1','validation_status':status,'period_start':data.period_start,'period_end':data.period_end,'batch_count':len(batches),'vehicle_count':len(vehicles),'generated_at':generated_at}); return {'report_id':report_id,'filename':filename,'file_type':kind,'period_start':data.period_start,'period_end':data.period_end,'batch_ids':ids,'batch_count':len(batches),'vehicle_count':len(vehicles),'validation_status':status,'make_webhook':make_status,'blocking':[],'review':review}
 @app.get('/api/drafts')
 def drafts(x_dev_user:str|None=Header(None)): auth(x_dev_user); return list_rows('SELECT * FROM generated_reports ORDER BY id DESC')
 @app.get('/api/drafts/{report_id}/download')

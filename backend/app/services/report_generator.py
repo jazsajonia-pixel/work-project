@@ -48,3 +48,32 @@ def weekly_pptx(path,batch,vehicles,template=None):
         slide=prs.slides.add_slide(prs.slide_layouts[0]); slide.shapes.title.text='DRAFT — WEEKLY OPERATIONAL REPORT'; slide.placeholders[1].text='SAFE FALLBACK: Original PPTX template was not present.'
     slide=prs.slides.add_slide(prs.slide_layouts[5]); slide.shapes.title.text=f"Batch {batch['batch_id']} — Vehicle Recoveries"
     body=slide.shapes.add_textbox(500000,1200000,8500000,5000000).text_frame; body.text=f"Period: {batch.get('period_start','')} to {batch.get('period_end','')}\nLocation: {batch['location']}\n\n"+'\n'.join(f"{i}. {v.get('category','')} — {v.get('make','')} {v.get('model','')} — {v.get('plate_or_sticker','')}" for i,v in enumerate(vehicles,1)); prs.save(path)
+
+def weekly_docx_aggregate(path, period_start, period_end, batches, vehicles, template=None):
+    doc=Document(str(template)) if template and template.exists() else Document()
+    if not template: doc.add_heading('DRAFT — WEEKLY OPERATIONAL REPORT',0); doc.add_paragraph('SAFE FALLBACK: Original DOCX template was not present in the repository.')
+    doc.add_paragraph(f"Reporting period: {period_start} to {period_end} | Batches included: {len(batches)} | Vehicles: {len(vehicles)}")
+    by_batch={b['batch_id']:[] for b in batches}
+    for vehicle in vehicles: by_batch.setdefault(vehicle['batch_id'],[]).append(vehicle)
+    for batch in batches:
+        doc.add_heading(f"Batch {batch['batch_id']} — {batch['incident_date']} — {batch['location']}",1)
+        doc.add_paragraph(batch.get('title') or batch.get('operational_info') or 'Operation details not provided.')
+        table=doc.add_table(rows=1,cols=6); table.style='Table Grid'
+        for cell,label in zip(table.rows[0].cells,['Category','Make / Type / Model','Plate / Sticker','Recovery','Unit','Status']): cell.text=label
+        for v in by_batch.get(batch['batch_id'],[]):
+            cells=table.add_row().cells
+            for cell,value in zip(cells,[v.get('category',''),f"{v.get('make','')} {v.get('vehicle_type','')} {v.get('model','')}",v.get('plate_or_sticker',''),f"{v.get('recovery_date','')} / {v.get('recovery_place','')}",v.get('recovering_unit',''),v.get('status','')]): cell.text=value
+    doc.save(path)
+
+def weekly_pptx_aggregate(path, period_start, period_end, batches, vehicles, template=None):
+    prs=Presentation(str(template)) if template and template.exists() else Presentation()
+    if not template:
+        slide=prs.slides.add_slide(prs.slide_layouts[0]); slide.shapes.title.text='DRAFT — WEEKLY OPERATIONAL REPORT'; slide.placeholders[1].text='SAFE FALLBACK: Original PPTX template was not present.'
+    by_batch={b['batch_id']:[] for b in batches}
+    for vehicle in vehicles: by_batch.setdefault(vehicle['batch_id'],[]).append(vehicle)
+    for batch in batches:
+        slide=prs.slides.add_slide(prs.slide_layouts[5]); slide.shapes.title.text=f"Batch {batch['batch_id']} — Vehicle Recoveries"
+        rows=by_batch.get(batch['batch_id'],[])
+        body=slide.shapes.add_textbox(500000,1200000,8500000,5000000).text_frame
+        body.text=f"Reporting period: {period_start} to {period_end}\nIncident: {batch['incident_date']} {batch['incident_time']} — {batch['location']}\nVehicles: {len(rows)}\n\n"+'\n'.join(f"{i}. {v.get('category','')} — {v.get('make','')} {v.get('vehicle_type','')} {v.get('model','')} — {v.get('plate_or_sticker','')}" for i,v in enumerate(rows,1))
+    prs.save(path)

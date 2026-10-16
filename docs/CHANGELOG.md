@@ -20,6 +20,10 @@ Connected Gemini through an encrypted server-side deployment variable and added 
 
 Created the active `GSCHPT Draft Generated Intake` Make scenario (ID `6656649`) with custom webhook ID `2942297`. A synthetic `gschpt.draft.generated` event returned HTTP `200` and a Make execution ID, confirming end-to-end receipt. The application callback is non-blocking and sends metadata only.
 
+## 2026-10-16 — Period-based weekly reports
+
+Added `POST /api/reports/weekly` for DOCX/PPTX snapshots across all batches whose reporting interval overlaps the requested period. Added database queries for period batch, vehicle, and upload aggregation, per-batch validation with qualified messages, chronological ordering, and multi-batch output tests.
+
 ## 2026-10-16 — `5b41e2c`
 
 Hardened audit configuration and development access. The backend now uses the configured upload-size limit and exact configured development username. The frontend API base URL and development user are configurable through Vite variables. README and environment examples were updated.

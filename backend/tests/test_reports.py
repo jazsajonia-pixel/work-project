@@ -31,3 +31,15 @@ def test_validation_and_all_drafts():
         r=client.post(f'/api/batches/T-002/draft/{kind}',headers=H); assert r.status_code==200
         report=client.get('/api/drafts',headers=H).json()[0]; assert Path(report['path']).read_bytes().startswith(magic)
         assert client.get(f"/api/drafts/{report['id']}/download",headers=H).status_code==200
+def test_period_weekly_reports_aggregate_matching_batches():
+    make_batch('W-001'); client.post('/api/batches/W-001/vehicles',headers=H,json={'category':'MC','recovery_date':'2026-10-12','recovery_place':'Manila','plate_or_sticker':'AAA-111'})
+    r=client.post('/api/batches',headers=H,json={'batch_id':'W-002','title':'Second operation','incident_date':'2026-10-14','incident_time':'14:00','location':'Pasig','period_start':'2026-10-12','period_end':'2026-10-18','operational_info':'1 motorcycles','notes':'fictional'}); assert r.status_code==200
+    client.post('/api/batches/W-002/vehicles',headers=H,json={'category':'MV','recovery_date':'2026-10-14','recovery_place':'Pasig','plate_or_sticker':'BBB-222'})
+    r=client.post('/api/batches',headers=H,json={'batch_id':'W-OUT','title':'Outside','incident_date':'2026-10-20','incident_time':'09:00','location':'Cebu','period_start':'2026-10-20','period_end':'2026-10-20','operational_info':'1 motorcycles','notes':'fictional'}); assert r.status_code==200
+    client.post('/api/batches/W-OUT/vehicles',headers=H,json={'category':'MC','recovery_date':'2026-10-20','recovery_place':'Cebu','plate_or_sticker':'CCC-333'})
+    for kind,magic in [('DOCX',b'W-001'),('PPTX',b'W-001')]:
+        response=client.post('/api/reports/weekly',headers=H,json={'period_start':'2026-10-12','period_end':'2026-10-18','file_type':kind}); assert response.status_code==200, response.text
+        body=response.json(); assert set(body['batch_ids'])=={'W-001','W-002'} and body['vehicle_count']==2
+        report=client.get(f"/api/drafts/{body['report_id']}",headers=H); assert report.status_code==404
+        data=Path(client.get('/api/drafts',headers=H).json()[0]['path']).read_bytes(); assert data.startswith(b'PK')
+    bad=client.post('/api/reports/weekly',headers=H,json={'period_start':'2026-10-19','period_end':'2026-10-18','file_type':'DOCX'}); assert bad.status_code==422

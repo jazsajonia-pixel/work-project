@@ -81,6 +81,7 @@ Upload authoritative `.txt`, `.docx`, and `.pptx` templates to the protected `PO
 - `MAKE_DRAFT_WEBHOOK_URL` receives `gschpt.draft.generated` metadata when configured.
 - `GET /api/batches/{batch_id}/validate`
 - `POST /api/batches/{batch_id}/draft/{TXT|DOCX|PPTX}`
+- `POST /api/reports/weekly` with `{period_start, period_end, file_type: DOCX|PPTX}` aggregates all overlapping batches.
 - `GET /api/drafts/{id}/download` and `/api/uploads/{id}/download`
 
 ## Current Vercel/Neon deployment
