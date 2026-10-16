@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.env
+storage/*.db
+storage/*.db-*
+generated_drafts/*
+!generated_drafts/.gitkeep
+frontend/node_modules/
+frontend/dist/
+
+*.tsbuildinfo
