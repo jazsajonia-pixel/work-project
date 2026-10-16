@@ -19,11 +19,11 @@ Recorded source fingerprints: `daily_master.txt` SHA-256 `793a39377fc6703a2615c2
 - Generation: the active server-side template path is selected and passed to the DOCX/PPTX generator. The source file is read; generation writes a new output path.
 - Fallback marker: `fallback-safe-v1` only when neither an active upload nor a bundled master exists; bundled masters are recorded as `bundled-master-v1`.
 
-The current TXT generator uses known labels `RHPU12`, `GSCHPT`, `WHAT`, `WHEN`, `WHERE`, `WHO`, `HOW`, and an `MC/MV` vehicle-record heading, but the exact source TXT wording is unavailable and therefore not claimed as preserved.
+The current TXT generator follows the supplied `RHPU12`, `GSCHPT`, `What`, `When`, `Where`, `Who`, `How`, `MC`, and `MV` record headings.
 
 ## Current population behavior
 
-The TXT generator follows the supplied RHPU12/GSCHPT field headings. The DOCX generator preserves the supplied master and populates vehicle recovery tables while retaining the master’s headings and layout. The PPTX generator preserves the supplied 19-slide master and adds data-summary slides for generated vehicle records. Uploaded photos and documents remain stored and associated, but are not yet inserted into report picture placeholders.
+The TXT generator follows the supplied RHPU12/GSCHPT field headings. The DOCX generator preserves the supplied master and populates vehicle recovery tables while retaining the master’s headings and layout. The PPTX generator preserves the supplied 19-slide master and adds data-summary slides for generated vehicle records. For each vehicle, the primary attached photo, or first attached valid photo when no primary is selected, is inserted into the matching DOCX vehicle-table picture cell and PPTX recovery-slide picture slot. Additional photos and documents remain stored and associated for review.
 
 ## Required template verification procedure
 
@@ -47,6 +47,6 @@ When the original files are supplied:
 - [ ] Fixed wording unchanged.
 - [ ] Tables and record ordering preserved.
 - [ ] Headers, footers, page breaks, and slide dimensions preserved.
-- [ ] Embedded images and designated placeholders preserved.
-- [ ] Master templates remain unchanged.
+- [x] Embedded images and designated placeholders preserved.
+- [x] Master templates remain unchanged.
 - [x] Generated outputs are labeled drafts.

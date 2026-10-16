@@ -20,6 +20,10 @@ Connected Gemini through an encrypted server-side deployment variable and added 
 
 Created the active `GSCHPT Draft Generated Intake` Make scenario (ID `6656649`) with custom webhook ID `2942297`. A synthetic `gschpt.draft.generated` event returned HTTP `200` and a Make execution ID, confirming end-to-end receipt. The application callback is non-blocking and sends metadata only.
 
+## 2026-10-16 — Template image placeholder mapping
+
+Added deterministic vehicle-photo mapping for the supplied report masters. The primary attached photo, or first valid attached photo when no primary is selected, is inserted into the matching DOCX vehicle-table picture cell and PPTX recovery-slide picture slot. Regression coverage verifies the uploaded image bytes are present in both generated Office archives.
+
 ## 2026-10-16 — Period-based weekly reports
 
 Added `POST /api/reports/weekly` for DOCX/PPTX snapshots across all batches whose reporting interval overlaps the requested period. Added database queries for period batch, vehicle, and upload aggregation, per-batch validation with qualified messages, chronological ordering, and multi-batch output tests.

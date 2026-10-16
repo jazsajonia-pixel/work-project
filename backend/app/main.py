@@ -123,9 +123,10 @@ def draft(batch_id:str,kind:str,x_dev_user:str|None=Header(None)):
     kind=kind.upper(); ext={'TXT':'.txt','DOCX':'.docx','PPTX':'.pptx'}.get(kind)
     if not ext: raise HTTPException(400,'Supported draft types: TXT, DOCX, PPTX')
     active=get_row('SELECT * FROM templates WHERE file_type=? AND active=1 ORDER BY id DESC',(kind,)); template=template_for(kind,active); filename=f"DRAFT_{batch_id}_{datetime.now().strftime('%Y%m%d%H%M%S')}{ext}"; path=STORAGE/filename
+    uploads=list_rows('SELECT * FROM uploads WHERE batch_id=?',(batch_id,))
     if kind=='TXT': path.write_text(daily_txt(b,vs),encoding='utf-8')
-    elif kind=='DOCX': weekly_docx(path,b,vs,template)
-    else: weekly_pptx(path,b,vs,template)
+    elif kind=='DOCX': weekly_docx(path,b,vs,template,uploads)
+    else: weekly_pptx(path,b,vs,template,uploads)
     version=active['version'] if active else ('bundled-master-v1' if template else 'fallback-safe-v1'); status='Passed — draft only' if not result['review'] else 'Generated — review warnings'; generated_at=now(); report_id=execute('INSERT INTO generated_reports(batch_id,file_type,filename,path,template_version,validation_status,generated_at) VALUES(?,?,?,?,?,?,?)',(batch_id,kind,filename,str(path),version,status,generated_at)); make_status=send_draft_event({'event':'gschpt.draft.generated','report_id':report_id,'batch_id':batch_id,'file_type':kind,'filename':filename,'template_version':version,'validation_status':status,'generated_at':generated_at}); return {'report_id':report_id,'filename':filename,'validation_status':status,'make_webhook':make_status,'blocking':[],'review':result['review']}
 @app.post('/api/reports/weekly')
 def weekly_report(data:WeeklyReportIn,x_dev_user:str|None=Header(None)):
@@ -139,8 +140,8 @@ def weekly_report(data:WeeklyReportIn,x_dev_user:str|None=Header(None)):
         blocking.extend(f"{batch['batch_id']}: {message}" for message in result['blocking']); review.extend(f"{batch['batch_id']}: {message}" for message in result['review'])
     if blocking: raise HTTPException(422,detail={'message':'Blocking validation errors must be resolved.','blocking':blocking,'review':review})
     kind=data.file_type.upper(); active=get_row('SELECT * FROM templates WHERE file_type=? AND active=1 ORDER BY id DESC',(kind,)); template=template_for(kind,active); key=f'{data.period_start}_TO_{data.period_end}'; ext='.docx' if kind=='DOCX' else '.pptx'; filename=f'WEEKLY_{key}{ext}'; path=STORAGE/filename
-    if kind=='DOCX': weekly_docx_aggregate(path,data.period_start,data.period_end,batches,vehicles,template)
-    else: weekly_pptx_aggregate(path,data.period_start,data.period_end,batches,vehicles,template)
+    if kind=='DOCX': weekly_docx_aggregate(path,data.period_start,data.period_end,batches,vehicles,template,uploads)
+    else: weekly_pptx_aggregate(path,data.period_start,data.period_end,batches,vehicles,template,uploads)
     version=active['version'] if active else ('bundled-master-v1' if template else 'fallback-safe-v1'); status='Passed — weekly draft only' if not review else 'Generated — weekly review warnings'; generated_at=now(); scope=f'WEEKLY:{key}'; report_id=execute('INSERT INTO generated_reports(batch_id,file_type,filename,path,template_version,validation_status,generated_at) VALUES(?,?,?,?,?,?,?)',(scope,kind,filename,str(path),version,status,generated_at)); make_status=send_draft_event({'event':'gschpt.draft.generated','report_id':report_id,'batch_id':scope,'file_type':kind,'filename':filename,'template_version':version,'validation_status':status,'period_start':data.period_start,'period_end':data.period_end,'batch_count':len(batches),'vehicle_count':len(vehicles),'generated_at':generated_at}); return {'report_id':report_id,'filename':filename,'file_type':kind,'period_start':data.period_start,'period_end':data.period_end,'batch_ids':ids,'batch_count':len(batches),'vehicle_count':len(vehicles),'validation_status':status,'make_webhook':make_status,'blocking':[],'review':review}
 @app.get('/api/drafts')
 def drafts(x_dev_user:str|None=Header(None)): auth(x_dev_user); return list_rows('SELECT * FROM generated_reports ORDER BY id DESC')

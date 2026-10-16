@@ -1,5 +1,8 @@
 import os
+import io
+import zipfile
 from pathlib import Path
+from PIL import Image
 os.environ['GSCHPT_DB_PATH']='/tmp/gschpt_test.db'; os.environ['GSCHPT_PRIVATE_STORAGE_DIR']='/tmp/gschpt_private'; os.environ['GSCHPT_DEV_USERNAME']='test'
 from fastapi.testclient import TestClient
 from app.main import app
@@ -43,3 +46,17 @@ def test_period_weekly_reports_aggregate_matching_batches():
         report=client.get(f"/api/drafts/{body['report_id']}",headers=H); assert report.status_code==404
         data=Path(client.get('/api/drafts',headers=H).json()[0]['path']).read_bytes(); assert data.startswith(b'PK')
     bad=client.post('/api/reports/weekly',headers=H,json={'period_start':'2026-10-19','period_end':'2026-10-18','file_type':'DOCX'}); assert bad.status_code==422
+
+def test_vehicle_photo_is_mapped_into_docx_and_pptx_placeholders():
+    make_batch('IMG-001')
+    vehicle=client.post('/api/batches/IMG-001/vehicles',headers=H,json={'category':'MC','make':'HONDA','model':'PHOTO','plate_or_sticker':'IMG-123','recovery_date':'2026-10-16','recovery_place':'Test location'}).json()
+    image=Image.new('RGB',(24,12),(220,30,30)); stream=io.BytesIO(); image.save(stream,format='PNG'); payload=stream.getvalue()
+    uploaded=client.post('/api/batches/IMG-001/photos',headers=H,files=[('files',('vehicle.png',payload,'image/png'))]).json()[0]
+    assert client.patch(f"/api/uploads/{uploaded['id']}/associate?vehicle_id={vehicle['id']}&primary_image=true",headers=H).status_code==200
+    generated={kind:client.post(f'/api/batches/IMG-001/draft/{kind}',headers=H).json() for kind in ('DOCX','PPTX')}
+    reports={x['id']:x for x in client.get('/api/drafts',headers=H).json()}
+    for kind,result in generated.items():
+        report=reports[result['report_id']]
+        with zipfile.ZipFile(report['path']) as archive:
+            media=[archive.read(name) for name in archive.namelist() if name.startswith('word/media/' if kind=='DOCX' else 'ppt/media/')]
+        assert any(payload in item for item in media), f'uploaded photo missing from {kind}'

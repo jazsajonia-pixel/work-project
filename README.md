@@ -25,7 +25,7 @@ The maintained documentation system is indexed at [`docs/README.md`](docs/README
 
 ## Important template limitation
 
-The supplied GSCHPT examples are now bundled as `templates/daily_master.txt`, `templates/weekly_master.docx`, and `templates/weekly_master.pptx`. The application uses an active uploaded template when available, otherwise it uses these bundled masters. DOCX/PPTX generation preserves the source master and populates mapped vehicle summary content; photograph placement in template picture placeholders remains a follow-up limitation.
+The supplied GSCHPT examples are bundled as `templates/daily_master.txt`, `templates/weekly_master.docx`, and `templates/weekly_master.pptx`. The application uses an active uploaded template when available, otherwise it uses these bundled masters. DOCX/PPTX generation preserves the source master, populates mapped vehicle summary content, and inserts each vehicle’s primary (or first valid) attached photo into the matching recovery placeholder.
 
 ## Local setup
 
