@@ -25,6 +25,14 @@ def vehicle_or_404(vehicle_id):
     v=get_row('SELECT * FROM vehicles WHERE id=?',(vehicle_id,));
     if not v: raise HTTPException(404,'Vehicle not found')
     return v
+def template_for(kind, active=None):
+    if active and Path(active['path']).is_file(): return Path(active['path'])
+    bundled={'TXT':'daily_master.txt','DOCX':'weekly_master.docx','PPTX':'weekly_master.pptx'}.get(kind)
+    candidate=TEMPLATE_DIR/bundled if bundled else None
+    return candidate if candidate and candidate.is_file() else None
+def available_template_types():
+    types={x['file_type'] for x in list_rows('SELECT * FROM templates WHERE active=1')}
+    return types | {kind for kind in ('TXT','DOCX','PPTX') if template_for(kind)}
 class BatchIn(BaseModel):
     batch_id:str=Field(min_length=2,max_length=80); title:str=''; incident_date:str; incident_time:str; location:str=Field(min_length=1); period_start:str=''; period_end:str=''; operational_info:str=''; notes:str=''; status:str='Draft'
 class VehicleIn(BaseModel):
@@ -105,7 +113,7 @@ def download_upload(upload_id:int,x_dev_user:str|None=Header(None)):
     if not u or not Path(u['path']).is_file(): raise HTTPException(404,'Upload not found')
     return FileResponse(u['path'],filename=u['filename'],media_type=u['content_type'])
 def validation(batch_id):
-    b=batch_or_404(batch_id); vs=list_rows('SELECT * FROM vehicles WHERE batch_id=?',(batch_id,)); us=list_rows('SELECT * FROM uploads WHERE batch_id=?',(batch_id,)); active={x['file_type'] for x in list_rows('SELECT * FROM templates WHERE active=1')}; return validate_batch(b,vs,us,active)
+    b=batch_or_404(batch_id); vs=list_rows('SELECT * FROM vehicles WHERE batch_id=?',(batch_id,)); us=list_rows('SELECT * FROM uploads WHERE batch_id=?',(batch_id,)); return validate_batch(b,vs,us,available_template_types())
 @app.get('/api/batches/{batch_id}/validate')
 def validate(batch_id:str,x_dev_user:str|None=Header(None)): auth(x_dev_user); return validation(batch_id)
 @app.post('/api/batches/{batch_id}/draft/{kind}')
@@ -114,26 +122,26 @@ def draft(batch_id:str,kind:str,x_dev_user:str|None=Header(None)):
     if result['blocking']: raise HTTPException(422,detail={'message':'Blocking validation errors must be resolved.','blocking':result['blocking'],'review':result['review']})
     kind=kind.upper(); ext={'TXT':'.txt','DOCX':'.docx','PPTX':'.pptx'}.get(kind)
     if not ext: raise HTTPException(400,'Supported draft types: TXT, DOCX, PPTX')
-    active=get_row('SELECT * FROM templates WHERE file_type=? AND active=1 ORDER BY id DESC',(kind,)); template=Path(active['path']) if active and Path(active['path']).is_file() else None; filename=f"DRAFT_{batch_id}_{datetime.now().strftime('%Y%m%d%H%M%S')}{ext}"; path=STORAGE/filename
+    active=get_row('SELECT * FROM templates WHERE file_type=? AND active=1 ORDER BY id DESC',(kind,)); template=template_for(kind,active); filename=f"DRAFT_{batch_id}_{datetime.now().strftime('%Y%m%d%H%M%S')}{ext}"; path=STORAGE/filename
     if kind=='TXT': path.write_text(daily_txt(b,vs),encoding='utf-8')
     elif kind=='DOCX': weekly_docx(path,b,vs,template)
     else: weekly_pptx(path,b,vs,template)
-    status='Passed — draft only' if not result['review'] else 'Generated — review warnings'; generated_at=now(); report_id=execute('INSERT INTO generated_reports(batch_id,file_type,filename,path,template_version,validation_status,generated_at) VALUES(?,?,?,?,?,?,?)',(batch_id,kind,filename,str(path),active['version'] if active else 'fallback-safe-v1',status,generated_at)); make_status=send_draft_event({'event':'gschpt.draft.generated','report_id':report_id,'batch_id':batch_id,'file_type':kind,'filename':filename,'template_version':active['version'] if active else 'fallback-safe-v1','validation_status':status,'generated_at':generated_at}); return {'report_id':report_id,'filename':filename,'validation_status':status,'make_webhook':make_status,'blocking':[],'review':result['review']}
+    version=active['version'] if active else ('bundled-master-v1' if template else 'fallback-safe-v1'); status='Passed — draft only' if not result['review'] else 'Generated — review warnings'; generated_at=now(); report_id=execute('INSERT INTO generated_reports(batch_id,file_type,filename,path,template_version,validation_status,generated_at) VALUES(?,?,?,?,?,?,?)',(batch_id,kind,filename,str(path),version,status,generated_at)); make_status=send_draft_event({'event':'gschpt.draft.generated','report_id':report_id,'batch_id':batch_id,'file_type':kind,'filename':filename,'template_version':version,'validation_status':status,'generated_at':generated_at}); return {'report_id':report_id,'filename':filename,'validation_status':status,'make_webhook':make_status,'blocking':[],'review':result['review']}
 @app.post('/api/reports/weekly')
 def weekly_report(data:WeeklyReportIn,x_dev_user:str|None=Header(None)):
     auth(x_dev_user)
     if data.period_start>data.period_end: raise HTTPException(422,'Weekly period start must not be after its end.')
     batches=weekly_batches(data.period_start,data.period_end)
     if not batches: raise HTTPException(422,'No batches fall within the requested reporting period.')
-    ids=[b['batch_id'] for b in batches]; vehicles=batch_vehicles(ids); uploads=batch_uploads(ids); active_types={x['file_type'] for x in list_rows('SELECT * FROM templates WHERE active=1')}; blocking=[]; review=[]
+    ids=[b['batch_id'] for b in batches]; vehicles=batch_vehicles(ids); uploads=batch_uploads(ids); active_types=available_template_types(); blocking=[]; review=[]
     for batch in batches:
         result=validate_batch(batch,[v for v in vehicles if v['batch_id']==batch['batch_id']],[u for u in uploads if u['batch_id']==batch['batch_id']],active_types)
         blocking.extend(f"{batch['batch_id']}: {message}" for message in result['blocking']); review.extend(f"{batch['batch_id']}: {message}" for message in result['review'])
     if blocking: raise HTTPException(422,detail={'message':'Blocking validation errors must be resolved.','blocking':blocking,'review':review})
-    kind=data.file_type.upper(); active=get_row('SELECT * FROM templates WHERE file_type=? AND active=1 ORDER BY id DESC',(kind,)); template=Path(active['path']) if active and Path(active['path']).is_file() else None; key=f'{data.period_start}_TO_{data.period_end}'; ext='.docx' if kind=='DOCX' else '.pptx'; filename=f'WEEKLY_{key}{ext}'; path=STORAGE/filename
+    kind=data.file_type.upper(); active=get_row('SELECT * FROM templates WHERE file_type=? AND active=1 ORDER BY id DESC',(kind,)); template=template_for(kind,active); key=f'{data.period_start}_TO_{data.period_end}'; ext='.docx' if kind=='DOCX' else '.pptx'; filename=f'WEEKLY_{key}{ext}'; path=STORAGE/filename
     if kind=='DOCX': weekly_docx_aggregate(path,data.period_start,data.period_end,batches,vehicles,template)
     else: weekly_pptx_aggregate(path,data.period_start,data.period_end,batches,vehicles,template)
-    status='Passed — weekly draft only' if not review else 'Generated — weekly review warnings'; generated_at=now(); scope=f'WEEKLY:{key}'; report_id=execute('INSERT INTO generated_reports(batch_id,file_type,filename,path,template_version,validation_status,generated_at) VALUES(?,?,?,?,?,?,?)',(scope,kind,filename,str(path),active['version'] if active else 'fallback-safe-v1',status,generated_at)); make_status=send_draft_event({'event':'gschpt.draft.generated','report_id':report_id,'batch_id':scope,'file_type':kind,'filename':filename,'template_version':active['version'] if active else 'fallback-safe-v1','validation_status':status,'period_start':data.period_start,'period_end':data.period_end,'batch_count':len(batches),'vehicle_count':len(vehicles),'generated_at':generated_at}); return {'report_id':report_id,'filename':filename,'file_type':kind,'period_start':data.period_start,'period_end':data.period_end,'batch_ids':ids,'batch_count':len(batches),'vehicle_count':len(vehicles),'validation_status':status,'make_webhook':make_status,'blocking':[],'review':review}
+    version=active['version'] if active else ('bundled-master-v1' if template else 'fallback-safe-v1'); status='Passed — weekly draft only' if not review else 'Generated — weekly review warnings'; generated_at=now(); scope=f'WEEKLY:{key}'; report_id=execute('INSERT INTO generated_reports(batch_id,file_type,filename,path,template_version,validation_status,generated_at) VALUES(?,?,?,?,?,?,?)',(scope,kind,filename,str(path),version,status,generated_at)); make_status=send_draft_event({'event':'gschpt.draft.generated','report_id':report_id,'batch_id':scope,'file_type':kind,'filename':filename,'template_version':version,'validation_status':status,'period_start':data.period_start,'period_end':data.period_end,'batch_count':len(batches),'vehicle_count':len(vehicles),'generated_at':generated_at}); return {'report_id':report_id,'filename':filename,'file_type':kind,'period_start':data.period_start,'period_end':data.period_end,'batch_ids':ids,'batch_count':len(batches),'vehicle_count':len(vehicles),'validation_status':status,'make_webhook':make_status,'blocking':[],'review':review}
 @app.get('/api/drafts')
 def drafts(x_dev_user:str|None=Header(None)): auth(x_dev_user); return list_rows('SELECT * FROM generated_reports ORDER BY id DESC')
 @app.get('/api/drafts/{report_id}/download')

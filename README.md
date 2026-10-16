@@ -25,7 +25,7 @@ The maintained documentation system is indexed at [`docs/README.md`](docs/README
 
 ## Important template limitation
 
-The connected repository did not contain the authoritative GSCHPT TXT, DOCX, or PPTX files. The `templates/` directory therefore contains only a marker. The application has protected template upload/version infrastructure and will use an active uploaded template when supplied. Until then, DOCX/PPTX use explicitly labeled `fallback-safe-v1` layouts. These fallbacks do **not** claim to preserve unavailable original formatting.
+The supplied GSCHPT examples are now bundled as `templates/daily_master.txt`, `templates/weekly_master.docx`, and `templates/weekly_master.pptx`. The application uses an active uploaded template when available, otherwise it uses these bundled masters. DOCX/PPTX generation preserves the source master and populates mapped vehicle summary content; photograph placement in template picture placeholders remains a follow-up limitation.
 
 ## Local setup
 

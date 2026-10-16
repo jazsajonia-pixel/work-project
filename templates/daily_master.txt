@@ -1,0 +1,154 @@
+RHPU12
+
+GSCHPT
+
+What: Report on Apprehended/Impounded 
+
+When: October 16, 2026
+
+Where: NHW, General Santos City
+
+Who: GSCHPT (RHPU-12)Personnel
+
+How: On October 16, 2026 at about 8:00 AM, Personnel of General Santos Highway Patrol Team (GSCPHPT),led by PLT RHEINAN M MAINAR, Asst. City Chief conducted  Anti-Carnapping (R. A 10883) PD 96 and other related laws along NHW, Brgy. Labangal Makar Warf General santos City herein described of five (5) Motorcycles with various violation indicated below.
+
+
+MC1
+Make/Type: KAWASAKI
+Engine Number : DYXWMM52569
+Chassis Number: MC2A76311PA2A32267
+Color: BLACK/RED
+Plate Number: 564MQN
+Driver/Possessor: CAPISTRANO VINCENT SEBAN
+Address: DAD NORTH, GENERAL SANTOS CITY
+Violation: OR/CR not carried "ATTA"
+
+MC2
+Make/Type: KAWASAKI
+Engine Number : DYXWSH29892
+Chassis Number: MD2A76BX0SWH12941
+Color: BLACK
+Plate Number: M7209M
+Driver/Possessor: ISLA RONIO GUNDANG
+Address: SITIO MOTOKLING T’BOLI SOUTH COTABATO
+Violation: OR/CR not carried "ATTA"
+
+MC3
+Make/Type: HONDA
+Engine Number : ***********
+Chassis Number: ***********
+Color: BLACK
+Plate Number: FOR REGISTRATION
+Driver/Possessor: JAIME CHARLES ANDRIAN GALANG
+Address: BRGY SAN ISIDRO GENERAL SANTOS CITY
+Violation: OR/CR not carried "ATTA"
+
+MC4
+Make/Type: HONDA
+Engine Number : KPG20E062458
+Chassis Number: KPG20062424
+Color: BLACK
+Plate Number: 727MDW
+Driver/Possessor: VINCENT DELOY
+Address: BRGY CALUMPANG GENERAL SANTOS CTIY
+Violation: OR/CR not carried "ATTA"
+
+MC5
+Make/Type: HONDA
+Engine Number : KRH10E062337
+Chassis Number: KRHV0068735
+Color: BLACK
+Plate Number: M674CA
+Driver/Possessor: VINCENT DELOY
+Address: BRGY CALUMPANG GENERAL SANTOS CTIY
+Violation: OR/CR not carried "ATTA"
+
+MC6
+Make/Type: HONDA
+Engine Number : JF78E7423710
+Chassis Number: K81P2014457
+Color: BLACK
+Plate Number: 189MRI
+Driver/Possessor: JALAPIT, DAVE ZECH BENDULA
+Address: SILWAY 8, POLOMOLOK SOUTH COTABATO
+Violation: OR/CR not carried "ATTA"
+
+MC7
+Make/Type: YAMAHA
+Engine Number : G3W1E-0146378
+Chassis Number: PA0SO992050043042
+Color: BLACK
+Plate Number: M7971H
+Driver/Possessor: PABLITO, KYAMKO DESCARTIN JR.
+Address: APOPONG, GENERAL SANTOS CITY
+Violation: OR/CR not carried "ATTA"
+
+MC8
+Make/Type: YAMAHA
+Engine Number : G3J1E-0113703
+Chassis Number: PA0SG4910H0016529
+Color: WHITE
+Plate Number: 256MCX
+Driver/Possessor: MANSILLA, JOHN MARK P.
+Address: DADIANGAS NORTH, GENERAL SANTOS CITY
+Violation: Expired OR/CR "ATTA"
+
+MC9
+Make/Type: RUSI
+Engine Number : RF162FMKCPN054396
+Chassis Number: RFCPCLXJ0PY054396
+Color: BLACK
+Plate Number: 435ZSP
+Driver/Possessor: DACUA, ALEMAR P.
+Address: DADIANGAS PROSPERIDAD, AGUSAN DEL SUR
+Violation: OR/CR not carried "ATTA"
+
+MC10
+Make/Type: HONDA
+Engine Number : KO12E7038679
+Chassis Number: ************
+Color: BLACK
+Plate Number: ************
+Driver/Possessor: BUAN, JOEY S.
+Address: UHAW FATIMA, General Santos City
+Violation: OR/CR not carried "ATTA"
+
+MV1
+Make/Type: SUZUKI
+Engine Number : K6A-A304015
+Chassis Number: MH23S-897342
+Color: VIOLET/BLACK
+Plate Number: MBG9035
+Driver/Possessor: MANTAWIN, DHATS SALIK
+Address: PALITAN, TUPI SOUTH COTABATO
+Violation: OR/CR not carried "ATTA"
+
+MV2
+Make/Type: SUZUKI
+Engine Number : F6A-2088916
+Chassis Number: DA52T-227719
+Color: APPLE GREEN
+Plate Number: MBF3706
+Driver/Possessor: TUA, MOHAMMAD SAUDI SAMAD
+Address: LUMATIL, MAASIM SARANGANI PROVINCE
+Violation: OR/CR not carried "ATTA"
+
+MV3
+Make/Type: HOWO
+Engine Number : ***********
+Chassis Number: ***********
+Color: WHITE
+Plate Number: NBO9152
+Driver/Possessor: TOQUIB, JOHN CARL BAGOBE
+Address: FATIMA, GENERAL SANTOS CITY
+Violation: OR/CR not carried "ATTA" 
+
+MV4
+Make/Type: MITSUBISHI
+Engine Number : 4N14UAL2290
+Chassis Number: ***********
+Color: WHITE
+Plate Number: NID1492
+Driver/Possessor: ESCALIRA, SANDY GODINEZ
+Address: SIRAWAN, TORIL, DAVAO CITY, DAVAO DEL SUR
+Violation: OR/CR not carried "ATTA"

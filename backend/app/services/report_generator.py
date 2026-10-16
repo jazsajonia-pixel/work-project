@@ -46,12 +46,18 @@ def weekly_pptx(path,batch,vehicles,template=None):
     prs=Presentation(str(template)) if template and template.exists() else Presentation()
     if not template:
         slide=prs.slides.add_slide(prs.slide_layouts[0]); slide.shapes.title.text='DRAFT — WEEKLY OPERATIONAL REPORT'; slide.placeholders[1].text='SAFE FALLBACK: Original PPTX template was not present.'
-    slide=prs.slides.add_slide(prs.slide_layouts[5]); slide.shapes.title.text=f"Batch {batch['batch_id']} — Vehicle Recoveries"
+    slide=prs.slides.add_slide(prs.slide_layouts[0]); slide.shapes.title.text=f"Batch {batch['batch_id']} — Vehicle Recoveries"
     body=slide.shapes.add_textbox(500000,1200000,8500000,5000000).text_frame; body.text=f"Period: {batch.get('period_start','')} to {batch.get('period_end','')}\nLocation: {batch['location']}\n\n"+'\n'.join(f"{i}. {v.get('category','')} — {v.get('make','')} {v.get('model','')} — {v.get('plate_or_sticker','')}" for i,v in enumerate(vehicles,1)); prs.save(path)
 
 def weekly_docx_aggregate(path, period_start, period_end, batches, vehicles, template=None):
     doc=Document(str(template)) if template and template.exists() else Document()
     if not template: doc.add_heading('DRAFT — WEEKLY OPERATIONAL REPORT',0); doc.add_paragraph('SAFE FALLBACK: Original DOCX template was not present in the repository.')
+    if template:
+        for paragraph in doc.paragraphs:
+            paragraph.text=re.sub(r'\(\)|_+',str(len([v for v in vehicles if v.get('category')=='MV'])),paragraph.text) if 'recovered MV' in paragraph.text else paragraph.text
+            paragraph.text=re.sub(r'\(\)|_+',str(len([v for v in vehicles if v.get('category')=='MC'])),paragraph.text) if 'recovered MC' in paragraph.text else paragraph.text
+        _fill_template_vehicle_tables(doc,batches,vehicles,period_start,period_end)
+        return doc.save(path)
     doc.add_paragraph(f"Reporting period: {period_start} to {period_end} | Batches included: {len(batches)} | Vehicles: {len(vehicles)}")
     by_batch={b['batch_id']:[] for b in batches}
     for vehicle in vehicles: by_batch.setdefault(vehicle['batch_id'],[]).append(vehicle)
@@ -65,10 +71,37 @@ def weekly_docx_aggregate(path, period_start, period_end, batches, vehicles, tem
             for cell,value in zip(cells,[v.get('category',''),f"{v.get('make','')} {v.get('vehicle_type','')} {v.get('model','')}",v.get('plate_or_sticker',''),f"{v.get('recovery_date','')} / {v.get('recovery_place','')}",v.get('recovering_unit',''),v.get('status','')]): cell.text=value
     doc.save(path)
 
+def _fill_template_vehicle_tables(doc,batches,vehicles,period_start,period_end):
+    """Populate the supplied master tables without destroying their headings, images, or layout."""
+    batch_by_id={b['batch_id']:b for b in batches}; rows_by_kind={'MC':[v for v in vehicles if v.get('category')=='MC'],'MV':[v for v in vehicles if v.get('category')=='MV']}
+    candidates=[]
+    for table in doc.tables:
+        headers=' '.join(cell.text for cell in table.rows[0].cells).lower()
+        if 'plate' in headers and ('recovery' in headers or 'date' in headers): candidates.append(table)
+    for index,table in enumerate(candidates):
+        kind='MC' if index==0 else 'MV' if index==1 else None
+        if not kind: continue
+        records=rows_by_kind[kind]
+        for row_index, vehicle in enumerate(records,1):
+            row=table.rows[row_index] if row_index < len(table.rows) else table.add_row()
+            values=[str(row_index),f"{vehicle.get('make','')} {vehicle.get('vehicle_type','')} {vehicle.get('model','')}",vehicle.get('recovery_date',''),vehicle.get('recovering_unit',''),vehicle.get('plate_or_sticker',''),vehicle.get('mode_of_recovery',''),vehicle.get('recovery_place',''),vehicle.get('violation',''),vehicle.get('status','')]
+            for cell,value in zip(row.cells,values): cell.text=value
+        for row_index in range(len(records)+1,len(table.rows)):
+            for cell in table.rows[row_index].cells: cell.text=''
+    for paragraph in doc.paragraphs:
+        if 'DETAILS/SYNOPSIS' in paragraph.text: paragraph.text=f'DETAILS/SYNOPSIS OF ACCOMPLISHMENT — {period_start} to {period_end}'
+
 def weekly_pptx_aggregate(path, period_start, period_end, batches, vehicles, template=None):
     prs=Presentation(str(template)) if template and template.exists() else Presentation()
     if not template:
         slide=prs.slides.add_slide(prs.slide_layouts[0]); slide.shapes.title.text='DRAFT — WEEKLY OPERATIONAL REPORT'; slide.placeholders[1].text='SAFE FALLBACK: Original PPTX template was not present.'
+    else:
+        for slide in prs.slides:
+            for shape in slide.shapes:
+                if hasattr(shape,'text') and 'WEEKLY ASSESSMENT' in shape.text:
+                    shape.text=f'RHPU 12 WEEKLY ASSESSMENT\n({period_start} to {period_end})'
+        _add_template_summary_slides(prs,period_start,period_end,batches,vehicles)
+        return prs.save(path)
     by_batch={b['batch_id']:[] for b in batches}
     for vehicle in vehicles: by_batch.setdefault(vehicle['batch_id'],[]).append(vehicle)
     for batch in batches:
@@ -77,3 +110,10 @@ def weekly_pptx_aggregate(path, period_start, period_end, batches, vehicles, tem
         body=slide.shapes.add_textbox(500000,1200000,8500000,5000000).text_frame
         body.text=f"Reporting period: {period_start} to {period_end}\nIncident: {batch['incident_date']} {batch['incident_time']} — {batch['location']}\nVehicles: {len(rows)}\n\n"+'\n'.join(f"{i}. {v.get('category','')} — {v.get('make','')} {v.get('vehicle_type','')} {v.get('model','')} — {v.get('plate_or_sticker','')}" for i,v in enumerate(rows,1))
     prs.save(path)
+
+def _add_template_summary_slides(prs,period_start,period_end,batches,vehicles):
+    by_category={'MC':[v for v in vehicles if v.get('category')=='MC'],'MV':[v for v in vehicles if v.get('category')=='MV']}
+    for category,records in by_category.items():
+        slide=prs.slides.add_slide(prs.slide_layouts[0]); slide.shapes.title.text=f'{category} DATA SUMMARY — {period_start} to {period_end}'
+        body=slide.shapes.add_textbox(500000,1200000,8500000,5000000).text_frame
+        body.text='\n'.join(f"{i}. {v.get('make','')} {v.get('vehicle_type','')} {v.get('model','')} | {v.get('plate_or_sticker','')} | {v.get('recovery_date','')} | {v.get('recovery_place','')}" for i,v in enumerate(records,1)) or 'No records in this category.'
