@@ -8,6 +8,10 @@
 
 Added the complete documentation system required by the documentation task. The documentation records the actual local stack, the fictional end-to-end audit, the absence of authoritative templates, and production blockers.
 
+## 2026-10-16 — `06877a7`
+
+Improved hosted diagnostics: `/api/health` now verifies a database query and reports connected database/storage mode, Neon connections use a five-second timeout, CORS origins are configurable, and the regression suite covers the health contract. The verified Vercel deployment uses this commit.
+
 ## 2026-10-16 — `5b41e2c`
 
 Hardened audit configuration and development access. The backend now uses the configured upload-size limit and exact configured development username. The frontend API base URL and development user are configurable through Vite variables. README and environment examples were updated.
