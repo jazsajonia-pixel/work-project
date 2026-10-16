@@ -3,8 +3,8 @@ from pathlib import Path
 import os, sqlite3
 
 DATABASE_URL=os.getenv('DATABASE_URL')
-DB_PATH=Path(os.getenv('GSCHPT_DB_PATH','./storage/gschpt.db'))
-DB_PATH.parent.mkdir(parents=True,exist_ok=True)
+DB_PATH=Path(os.getenv('GSCHPT_DB_PATH','/tmp/gschpt.db' if os.getenv('VERCEL') else './storage/gschpt.db'))
+if not DATABASE_URL: DB_PATH.parent.mkdir(parents=True,exist_ok=True)
 SCHEMA="""
 CREATE TABLE IF NOT EXISTS batches (id {auto}, batch_id TEXT UNIQUE NOT NULL, title TEXT NOT NULL DEFAULT '', preparation_date TEXT NOT NULL, incident_date TEXT NOT NULL, incident_time TEXT NOT NULL, location TEXT NOT NULL, period_start TEXT NOT NULL DEFAULT '', period_end TEXT NOT NULL DEFAULT '', operational_info TEXT NOT NULL DEFAULT '', notes TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'Draft', created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS vehicles (id {auto}, batch_id TEXT NOT NULL REFERENCES batches(batch_id) ON DELETE CASCADE, category TEXT NOT NULL, make TEXT NOT NULL DEFAULT '', vehicle_type TEXT NOT NULL DEFAULT '', model TEXT NOT NULL DEFAULT '', plate_or_sticker TEXT NOT NULL DEFAULT '', chassis_number TEXT NOT NULL DEFAULT '', motor_number TEXT NOT NULL DEFAULT '', color TEXT NOT NULL DEFAULT '', recovery_date TEXT NOT NULL DEFAULT '', recovery_place TEXT NOT NULL DEFAULT '', recovering_unit TEXT NOT NULL DEFAULT '', mode_of_recovery TEXT NOT NULL DEFAULT '', violation TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'For review', driver_name TEXT NOT NULL DEFAULT '', driver_address TEXT NOT NULL DEFAULT '', owner_name TEXT NOT NULL DEFAULT '', owner_address TEXT NOT NULL DEFAULT '', notes TEXT NOT NULL DEFAULT '', review_status TEXT NOT NULL DEFAULT 'Needs review');
