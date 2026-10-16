@@ -36,7 +36,7 @@ Gemini or other AI image analysis, automatic grouping, automatic plate extractio
 
 ## Current limitations
 
-The repository contains no authoritative TXT, DOCX, or PPTX templates. DOCX/PPTX fallback files are explicitly labeled and cannot be treated as format-preserving. Authentication is a development header gate, SQLite and local private folders are development storage, and no production deployment is claimed.
+The repository contains the supplied TXT, DOCX, and PPTX masters under `templates/`. Generation uses the masters by default and preserves their source structure while populating the currently mapped vehicle fields. Picture-placeholder insertion remains a known limitation. Authentication is a development header gate, while production uses Neon and Vercel runtime configuration.
 
 ## Long-term vision
 

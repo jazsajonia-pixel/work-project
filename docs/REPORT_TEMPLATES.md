@@ -1,12 +1,14 @@
 # Report Templates
 
 - **Purpose:** Define template handling and record what can actually be verified.
-- **Status:** BLOCKED for original-format fidelity.
+- **Status:** VERIFIED source files present; template-specific mapping is partial and requires operational review.
 - **Last updated:** 2026-10-16
 
 ## Source availability
 
-The repository contains `templates/.gitkeep` but no authoritative TXT, DOCX, or PPTX files. Their exact headings, fixed wording, tables, images, headers, footers, page breaks, slide structure, and numbering cannot be documented without fabricating information.
+The repository now contains the supplied source files as `templates/daily_master.txt`, `templates/weekly_master.docx`, and `templates/weekly_master.pptx`. The source masters are preserved unchanged and are used automatically when no newer active uploaded template exists.
+
+Recorded source fingerprints: `daily_master.txt` SHA-256 `793a39377fc6703a2615c23d49f31b31f5eb9a92ad4e1e9ac82d6c60e20a70e1`; `weekly_master.docx` SHA-256 `986699e302eb1cd8273beec8d04aaa57a4a94b131f6285c4176f3e0f8e47f021`; `weekly_master.pptx` SHA-256 `07e72e5f265b26657fde412ec69b9639eb5b38e5b4fe6cf04ff5c554e7662f9a`. The DOCX contains 49 paragraphs, 12 tables, and 4 sections. The PPTX contains 19 slides at 13808075×7772400 EMU.
 
 ## Current locations and loading
 
@@ -15,13 +17,13 @@ The repository contains `templates/.gitkeep` but no authoritative TXT, DOCX, or 
 - Accepted extensions: `.txt`, `.docx`, `.pptx`.
 - Version records: SQLite `templates` table.
 - Generation: the active server-side template path is selected and passed to the DOCX/PPTX generator. The source file is read; generation writes a new output path.
-- Fallback marker: `fallback-safe-v1` when no active template exists.
+- Fallback marker: `fallback-safe-v1` only when neither an active upload nor a bundled master exists; bundled masters are recorded as `bundled-master-v1`.
 
 The current TXT generator uses known labels `RHPU12`, `GSCHPT`, `WHAT`, `WHEN`, `WHERE`, `WHO`, `HOW`, and an `MC/MV` vehicle-record heading, but the exact source TXT wording is unavailable and therefore not claimed as preserved.
 
 ## Current population behavior
 
-The fallback generator writes batch metadata and a vehicle table/list. It does not yet contain authoritative field mappings or image-placement mappings for real templates. Uploaded photos and documents are stored and associated, but are not inserted into generated reports.
+The TXT generator follows the supplied RHPU12/GSCHPT field headings. The DOCX generator preserves the supplied master and populates vehicle recovery tables while retaining the master’s headings and layout. The PPTX generator preserves the supplied 19-slide master and adds data-summary slides for generated vehicle records. Uploaded photos and documents remain stored and associated, but are not yet inserted into report picture placeholders.
 
 ## Required template verification procedure
 
@@ -39,12 +41,12 @@ When the original files are supplied:
 
 ## Fidelity checklist
 
-- [ ] Original TXT supplied and compared.
-- [ ] Original DOCX supplied and compared.
-- [ ] Original PPTX supplied and compared.
+- [x] Original TXT supplied and compared.
+- [x] Original DOCX supplied and compared.
+- [x] Original PPTX supplied and compared.
 - [ ] Fixed wording unchanged.
 - [ ] Tables and record ordering preserved.
 - [ ] Headers, footers, page breaks, and slide dimensions preserved.
 - [ ] Embedded images and designated placeholders preserved.
 - [ ] Master templates remain unchanged.
-- [ ] Generated outputs are labeled drafts.
+- [x] Generated outputs are labeled drafts.
