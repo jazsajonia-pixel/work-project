@@ -8,7 +8,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from .db import conn, execute, get_row, list_rows, now
 from .services.report_generator import validate_batch, daily_txt, weekly_docx, weekly_pptx
-ROOT=Path(__file__).resolve().parents[2]; STORAGE=Path(os.getenv('GSCHPT_STORAGE_DIR',ROOT/'generated_drafts')); PRIVATE=Path(os.getenv('GSCHPT_PRIVATE_STORAGE_DIR',ROOT/'storage'/'private')); TEMPLATE_DIR=ROOT/'templates'; STORAGE.mkdir(exist_ok=True); PRIVATE.mkdir(parents=True,exist_ok=True); TEMPLATE_DIR.mkdir(exist_ok=True)
+ROOT=Path(__file__).resolve().parents[2]; RUNTIME_ROOT=Path('/tmp') if os.getenv('VERCEL') else ROOT; STORAGE=Path(os.getenv('GSCHPT_STORAGE_DIR',RUNTIME_ROOT/'generated_drafts')); PRIVATE=Path(os.getenv('GSCHPT_PRIVATE_STORAGE_DIR',RUNTIME_ROOT/'storage'/'private')); TEMPLATE_DIR=Path(os.getenv('GSCHPT_TEMPLATE_DIR',ROOT/'templates')); STORAGE.mkdir(parents=True,exist_ok=True); PRIVATE.mkdir(parents=True,exist_ok=True); TEMPLATE_DIR.mkdir(parents=True,exist_ok=True)
 app=FastAPI(title='GSCHPT Reporting Dashboard API'); app.add_middleware(CORSMiddleware,allow_origins=['http://localhost:5173','http://127.0.0.1:5173'],allow_methods=['*'],allow_headers=['*'])
 IMAGE_TYPES={'.jpg':'image/jpeg','.jpeg':'image/jpeg','.png':'image/png','.webp':'image/webp'}; DOC_TYPES={'.pdf':'application/pdf','.jpg':'image/jpeg','.jpeg':'image/jpeg','.png':'image/png','.webp':'image/webp'}; MAX_UPLOAD=int(os.getenv('GSCHPT_MAX_UPLOAD_MB','20'))*1024*1024
 def auth(user):
