@@ -2,6 +2,10 @@
 
 Private, locally runnable reporting dashboard for manually reviewed GSCHPT operational records. It supports persistent batches, manual vehicle records, unsorted private photo uploads, manual photo-to-vehicle association, manual possessor ID/license attachment, validation, and draft-only TXT/DOCX/PPTX generation.
 
+## Project documentation
+
+The maintained documentation system is indexed at [`docs/README.md`](docs/README.md). Start with the [Project Overview](docs/PROJECT_OVERVIEW.md), [System Architecture](docs/SYSTEM_ARCHITECTURE.md), and [AI Agent Guide](docs/AI_AGENT_GUIDE.md). The documentation records actual implementation status, test evidence, template limitations, security requirements, deployment blockers, and detailed phase plans.
+
 ## Implemented
 
 - React + TypeScript + Vite responsive dashboard.
