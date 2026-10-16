@@ -1,12 +1,12 @@
 # Deployment and Setup
 
 - **Purpose:** Provide reproducible local setup and state the production blockers.
-- **Status:** VERIFIED for local development; production deployment is BLOCKED.
+- **Status:** VERIFIED for local development and Vercel/Neon smoke deployment; production hardening remains BLOCKED.
 - **Last updated:** 2026-10-16
 
 ## Prerequisites
 
-Python 3.11+, Node.js 22+, npm, and Git. The repository currently uses FastAPI, Uvicorn, SQLite, `python-docx`, `python-pptx`, React, TypeScript, and Vite.
+Python 3.11+, Node.js 22+, npm, and Git. The repository uses FastAPI, Uvicorn, SQLite for local fallback, PostgreSQL/Neon when `DATABASE_URL` is set, `python-docx`, `python-pptx`, React, TypeScript, and Vite.
 
 ## Local installation
 
@@ -25,7 +25,7 @@ Do not commit `.env`, operational records, uploaded photos, ID documents, genera
 
 ## Environment variables
 
-Backend variables: `GSCHPT_DB_PATH`, `GSCHPT_STORAGE_DIR`, `GSCHPT_PRIVATE_STORAGE_DIR`, `GSCHPT_MAX_UPLOAD_MB`, `GSCHPT_DEV_USERNAME`, and `GSCHPT_DEV_PASSWORD` placeholder configuration. Frontend build variables: `VITE_API_BASE_URL` and `VITE_DEV_USER`. The current frontend header gate must match the configured backend development user.
+Backend variables: `DATABASE_URL`, `GSCHPT_DB_PATH`, `GSCHPT_STORAGE_DIR`, `GSCHPT_PRIVATE_STORAGE_DIR`, `GSCHPT_TEMPLATE_DIR`, `GSCHPT_MAX_UPLOAD_MB`, `GSCHPT_DEV_USERNAME`, and `GSCHPT_DEV_PASSWORD` placeholder configuration. Frontend build variables: `VITE_API_BASE_URL` and `VITE_DEV_USER`. The current frontend header gate must match the configured backend development user.
 
 ## Start services
 
@@ -60,9 +60,11 @@ PYTHONPATH=backend pytest -q backend/tests
 cd frontend && npm run build
 ```
 
-## Production deployment
+## Vercel and Neon deployment
 
-No production host, Supabase project, credentials, or deployment configuration is present. Before deployment, configure a private FastAPI host, PostgreSQL, private object storage, HTTPS, real identity and roles, secret injection, backups, monitoring, retention, and recovery procedures. A static frontend alone is insufficient.
+The application is deployed at [gschpt-reporting.vercel.app](https://gschpt-reporting.vercel.app) from the `feature/gschpt-phase1` branch. Vercel serves the Vite build and Python API function; Neon provides PostgreSQL persistence. The deployment was smoke-tested with frontend `200`, `/api/health` `200`, unauthorized dashboard `401`, and authorized dashboard `200`.
+
+This is not yet an operational production baseline: authentication is still the development header gate, and Vercel `/tmp` storage is ephemeral. Move photos, documents, templates, and generated drafts to durable private object storage; then add real identity/roles, signed or authorized downloads, malware scanning, backups, monitoring, retention, and recovery procedures.
 
 ## Troubleshooting
 

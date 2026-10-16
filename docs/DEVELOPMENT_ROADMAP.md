@@ -6,14 +6,14 @@
 
 | Phase | Name | Status | Main blocker or next dependency |
 |---|---|---|---|
-| 00 | Project Foundation | VERIFIED | Production identity and hosted persistence remain. |
+| 00 | Project Foundation | VERIFIED | Production identity and durable file storage remain. |
 | 01 | Dashboard and Template Engine | IMPLEMENTED — UNVERIFIED | Original templates are missing; fidelity is blocked. |
 | 02 | Automatic Upload Detection | DEFERRED | Requires explicit completion workflow and idempotent processing design. |
 | 03 | Gemini Image Analysis | DEFERRED | Requires privacy approval, model selection, quotas, and synthetic fixtures. |
 | 04 | Vehicle Review and Document Matching | DEFERRED | Manual association exists; richer review history and matching workflow do not. |
 | 05 | Automated Report Generation | IMPLEMENTED — UNVERIFIED | Fallback generation works; source-template mapping and approval rules remain. |
 | 06 | Validation and Quality Assurance | IN PROGRESS | Current validation exists; regression and fidelity QA need real masters. |
-| 07 | Security and Deployment | IN PROGRESS | Local security checks pass; production hosting and identity are absent. |
+| 07 | Security and Deployment | IN PROGRESS | Vercel/Neon smoke deployment passes; real identity and durable private storage remain. |
 | 08 | Maintenance and Future Improvements | DEFERRED | Begin after production baseline and template process exist. |
 
 Detailed scope is in each linked [phase document](README.md).

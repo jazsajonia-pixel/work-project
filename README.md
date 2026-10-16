@@ -78,8 +78,10 @@ Upload authoritative `.txt`, `.docx`, and `.pptx` templates to the protected `PO
 - `POST /api/batches/{batch_id}/draft/{TXT|DOCX|PPTX}`
 - `GET /api/drafts/{id}/download` and `/api/uploads/{id}/download`
 
-## Deployment and remaining configuration
+## Current Vercel/Neon deployment
 
-No hosting or Supabase credentials were available in the repository. Deployment is therefore not claimed. A real deployment needs a private backend host for FastAPI, a managed PostgreSQL database, private object storage, HTTPS, real authentication/session handling, authorization tied to the authenticated user, secure secret injection, backups, and non-public frontend-to-backend configuration. The SQLite/private-folder setup is development-only.
+The current branch is deployed at **https://gschpt-reporting.vercel.app** from `feature/gschpt-phase1`, commit `0f09eeb`. Vercel project: `gschpt-reporting`. Neon project: `gschpt-reporting` in `aws-ap-southeast-1`, with the application schema initialized in PostgreSQL.
+
+The deployment is a verified smoke deployment, not a production-security claim. It currently uses the development `X-Dev-User` header gate, and Vercel's writable filesystem is ephemeral. Photo/document uploads, generated drafts, and templates therefore require a durable private object store before operational use. Real identity/session handling, authorization tied to users, malware scanning, backups, retention, monitoring, and recovery are still required.
 
 Before the next phase, supply the original templates and validate their structure. Then implement field mappings and fidelity checks against the actual files. The exact next step for Gemini is to add a review-only analysis service behind a feature flag after manual uploads and associations are stable; it must never create official facts or silently associate files.
