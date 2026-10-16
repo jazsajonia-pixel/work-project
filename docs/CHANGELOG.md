@@ -14,7 +14,11 @@ Improved hosted diagnostics: `/api/health` now verifies a database query and rep
 
 ## 2026-10-16 — Gemini integration
 
-Connected Gemini through an encrypted server-side deployment variable and added an explicit review-only photo analysis endpoint. The endpoint returns structured suggestions, preserves uncertainty, never auto-associates a vehicle, and requires human review. Make.com is connected at the account level, but no GSCHPT scenario was created because the existing scenario is unrelated and the desired automation trigger/action is not yet specified.
+Connected Gemini through an encrypted server-side deployment variable and added an explicit review-only photo analysis endpoint. The endpoint returns structured suggestions, preserves uncertainty, never auto-associates a vehicle, and requires human review.
+
+## 2026-10-16 — Make.com draft intake
+
+Created the active `GSCHPT Draft Generated Intake` Make scenario (ID `6656649`) with custom webhook ID `2942297`. A synthetic `gschpt.draft.generated` event returned HTTP `200` and a Make execution ID, confirming end-to-end receipt. The application callback is non-blocking and sends metadata only.
 
 ## 2026-10-16 — `5b41e2c`
 

@@ -14,7 +14,7 @@
 | 05 | Automated Report Generation | IMPLEMENTED — UNVERIFIED | Fallback generation works; source-template mapping and approval rules remain. |
 | 06 | Validation and Quality Assurance | IN PROGRESS | Current validation exists; regression and fidelity QA need real masters. |
 | 07 | Security and Deployment | IN PROGRESS | Vercel/Neon smoke deployment passes; real identity and durable private storage remain. |
-| 08 | Maintenance and Future Improvements | DEFERRED | Begin after production baseline and template process exist. |
+| 08 | Maintenance and Future Improvements | IN PROGRESS | Make draft-event intake is connected; downstream archival/notification actions and production hardening remain. |
 
 Detailed scope is in each linked [phase document](README.md).
 
