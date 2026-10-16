@@ -9,7 +9,7 @@
 | 00 | Project Foundation | VERIFIED | Production identity and durable file storage remain. |
 | 01 | Dashboard and Template Engine | IMPLEMENTED — UNVERIFIED | Original templates are missing; fidelity is blocked. |
 | 02 | Automatic Upload Detection | DEFERRED | Requires explicit completion workflow and idempotent processing design. |
-| 03 | Gemini Image Analysis | DEFERRED | Requires privacy approval, model selection, quotas, and synthetic fixtures. |
+| 03 | Gemini Image Analysis | IN PROGRESS | Server-side review-only suggestions are connected; privacy approval, quotas, retention, and human-review UI remain. |
 | 04 | Vehicle Review and Document Matching | DEFERRED | Manual association exists; richer review history and matching workflow do not. |
 | 05 | Automated Report Generation | IMPLEMENTED — UNVERIFIED | Fallback generation works; source-template mapping and approval rules remain. |
 | 06 | Validation and Quality Assurance | IN PROGRESS | Current validation exists; regression and fidelity QA need real masters. |

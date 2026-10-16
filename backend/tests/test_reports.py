@@ -10,6 +10,9 @@ def make_batch(batch='T-001'):
     return client.post('/api/batches',headers=H,json={'batch_id':batch,'title':'Synthetic test','incident_date':'2026-10-16','incident_time':'10:30','location':'Test location','period_start':'2026-10-12','period_end':'2026-10-18','operational_info':'1 motorcycles','notes':'fictional'})
 def test_health_reports_database_connection():
     r=client.get('/api/health'); assert r.status_code==200 and r.json()['ok'] is True and r.json()['database']=='connected' and r.json()['storage']=='local'
+def test_gemini_analysis_is_explicit_and_requires_configuration():
+    make_batch(); p=client.post('/api/batches/T-001/photos',headers=H,files=[('files',('car.jpg',b'fake-jpg','image/jpeg'))]).json()[0]
+    r=client.post(f"/api/uploads/{p['id']}/analyze",headers=H); assert r.status_code==503 and 'Gemini' in r.json()['detail']
 def test_auth_and_batch_edit():
     assert client.get('/api/dashboard').status_code==401
     r=make_batch(); assert r.status_code==200 and r.json()['preparation_date']

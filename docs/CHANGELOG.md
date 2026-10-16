@@ -12,6 +12,10 @@ Added the complete documentation system required by the documentation task. The 
 
 Improved hosted diagnostics: `/api/health` now verifies a database query and reports connected database/storage mode, Neon connections use a five-second timeout, CORS origins are configurable, and the regression suite covers the health contract. The verified Vercel deployment uses this commit.
 
+## 2026-10-16 — Gemini integration
+
+Connected Gemini through an encrypted server-side deployment variable and added an explicit review-only photo analysis endpoint. The endpoint returns structured suggestions, preserves uncertainty, never auto-associates a vehicle, and requires human review. Make.com is connected at the account level, but no GSCHPT scenario was created because the existing scenario is unrelated and the desired automation trigger/action is not yet specified.
+
 ## 2026-10-16 — `5b41e2c`
 
 Hardened audit configuration and development access. The backend now uses the configured upload-size limit and exact configured development username. The frontend API base URL and development user are configurable through Vite variables. README and environment examples were updated.

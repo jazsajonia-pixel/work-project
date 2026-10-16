@@ -8,6 +8,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from .db import conn, execute, get_row, list_rows, now
 from .services.report_generator import validate_batch, daily_txt, weekly_docx, weekly_pptx
+from .services.gemini_analysis import analyze_image
 ROOT=Path(__file__).resolve().parents[2]; RUNTIME_ROOT=Path('/tmp') if os.getenv('VERCEL') else ROOT; STORAGE=Path(os.getenv('GSCHPT_STORAGE_DIR',RUNTIME_ROOT/'generated_drafts')); PRIVATE=Path(os.getenv('GSCHPT_PRIVATE_STORAGE_DIR',RUNTIME_ROOT/'storage'/'private')); TEMPLATE_DIR=Path(os.getenv('GSCHPT_TEMPLATE_DIR',ROOT/'templates')); STORAGE.mkdir(parents=True,exist_ok=True); PRIVATE.mkdir(parents=True,exist_ok=True); TEMPLATE_DIR.mkdir(parents=True,exist_ok=True)
 ALLOWED_ORIGINS=[x.strip() for x in os.getenv('GSCHPT_ALLOWED_ORIGINS','http://localhost:5173,http://127.0.0.1:5173').split(',') if x.strip()]
 app=FastAPI(title='GSCHPT Reporting Dashboard API'); app.add_middleware(CORSMiddleware,allow_origins=ALLOWED_ORIGINS,allow_methods=['*'],allow_headers=['*'])
@@ -89,6 +90,12 @@ def delete_upload(upload_id:int,x_dev_user:str|None=Header(None)):
     auth(x_dev_user); u=get_row('SELECT * FROM uploads WHERE id=?',(upload_id,));
     if not u: raise HTTPException(404,'Upload not found')
     Path(u['path']).unlink(missing_ok=True); execute('DELETE FROM uploads WHERE id=?',(upload_id,)); return {'deleted':True}
+@app.post('/api/uploads/{upload_id}/analyze')
+def analyze_upload(upload_id:int,x_dev_user:str|None=Header(None)):
+    auth(x_dev_user); u=get_row('SELECT * FROM uploads WHERE id=?',(upload_id,))
+    if not u or u['kind']!='PHOTO' or not Path(u['path']).is_file(): raise HTTPException(404,'Photo not found')
+    try: return analyze_image(Path(u['path']),u['content_type'],u['filename'])
+    except RuntimeError as exc: raise HTTPException(503,str(exc)) from exc
 @app.get('/api/uploads/{upload_id}/download')
 def download_upload(upload_id:int,x_dev_user:str|None=Header(None)):
     auth(x_dev_user); u=get_row('SELECT * FROM uploads WHERE id=?',(upload_id,));
