@@ -2,6 +2,11 @@
   "buildCommand": "npm --prefix frontend install && npm --prefix frontend run build",
   "outputDirectory": "frontend/dist",
   "framework": "vite",
+  "functions": {
+    "api/index.py": {
+      "includeFiles": ["templates/**"]
+    }
+  },
   "rewrites": [
     { "source": "/api/:path*", "destination": "/api/index.py" }
   ]
