@@ -3,11 +3,15 @@ import { createRoot } from 'react-dom/client';
 import {
   AlertCircle,
   ArrowRight,
+  CalendarDays,
   Check,
+  CheckCircle2,
   ChevronDown,
   CircleHelp,
   FileCheck2,
   FileText,
+  Download,
+  Filter,
   ImagePlus,
   LayoutDashboard,
   LoaderCircle,
@@ -17,6 +21,7 @@ import {
   Paperclip,
   Plus,
   RefreshCw,
+  Search,
   ScanSearch,
   Send,
   Settings,
@@ -127,6 +132,7 @@ function App() {
   const [busy, setBusy] = useState('');
   const [aiReview, setAiReview] = useState({ state: 'idle', total: 0, done: 0, errors: 0 });
   const [aiResults, setAiResults] = useState<Record<number, any>>({});
+  const [drafts, setDrafts] = useState<any[]>([]);
 
   const loadDashboard = async () => {
     try {
@@ -149,6 +155,19 @@ function App() {
     setAiReview({ state: 'idle', total: 0, done: 0, errors: 0 });
     setAiResults({});
     setTab('Batch');
+  };
+
+  const loadDrafts = async () => {
+    try {
+      setDrafts(await api('/drafts'));
+    } catch (error: any) {
+      setMessage(error.detail || 'The draft center could not be loaded.');
+    }
+  };
+
+  const navigateTab = (next: string) => {
+    setTab(next);
+    if (next === 'Generated Drafts') void loadDrafts();
   };
 
   useEffect(() => {
@@ -208,9 +227,9 @@ function App() {
     }
   };
 
-  const uploadPhotos = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.target.files || []);
-    event.currentTarget.value = '';
+  const uploadPhotos = async (eventOrFiles: React.ChangeEvent<HTMLInputElement> | File[]) => {
+    const files = Array.isArray(eventOrFiles) ? eventOrFiles : Array.from(eventOrFiles.target.files || []);
+    if (!Array.isArray(eventOrFiles)) eventOrFiles.currentTarget.value = '';
     if (!files.length || !batch.batch_id) return;
     setBusy(`Uploading ${files.length} photo${files.length === 1 ? '' : 's'}…`);
     try {
@@ -385,7 +404,7 @@ function App() {
         </div>
         <nav className="nav-list" aria-label="Main navigation">
           {navItems.map(([name, Icon]) => (
-            <button key={name} className={tab === name ? 'nav-item active' : 'nav-item'} onClick={() => setTab(name)}>
+            <button key={name} className={tab === name ? 'nav-item active' : 'nav-item'} onClick={() => navigateTab(name)}>
               <Icon size={17} /><span>{name}</span>
             </button>
           ))}
@@ -426,12 +445,58 @@ function App() {
             busy={busy}
           />
         )}
-        {['Vehicle Records', 'Generated Drafts', 'Templates'].includes(tab) && (
-          <section className="empty-state card-surface"><div className="empty-icon"><Settings size={24} /></div><h2>{tab}</h2><p>Open a batch to review its records and private files. The workspace keeps your originals private and generates drafts only.</p>{tab === 'Generated Drafts' && (dashboard.recent_batches || []).map((item: any) => <button key={item.batch_id} className="link-button" onClick={() => openBatch(item.batch_id)}>Open {item.batch_id}<ArrowRight size={15} /></button>)}</section>
+        {tab === 'Generated Drafts' && <DraftCenter drafts={drafts} refresh={loadDrafts} />}
+        {['Vehicle Records', 'Templates'].includes(tab) && (
+          <section className="empty-state card-surface"><div className="empty-icon"><Settings size={24} /></div><h2>{tab}</h2><p>Open a batch to review its records and private files. The workspace keeps your originals private and generates drafts only.</p></section>
         )}
       </main>
     </div>
   );
+}
+
+function DraftCenter({ drafts, refresh }: any) {
+  const [start, setStart] = useState('');
+  const [end, setEnd] = useState('');
+  const [weeklyType, setWeeklyType] = useState('DOCX');
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState('');
+
+  const downloadDraft = async (draft: any) => {
+    try {
+      const response = await fetch(`${API}/drafts/${draft.id}/download`, { headers: H });
+      if (!response.ok) throw new Error('Download failed');
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = draft.filename;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      setNotice('The private draft could not be downloaded.');
+    }
+  };
+
+  const createWeekly = async () => {
+    if (!start || !end) return setNotice('Choose both dates for the reporting week.');
+    setBusy(true);
+    try {
+      await api('/reports/weekly', { method: 'POST', body: JSON.stringify({ period_start: start, period_end: end, file_type: weeklyType }) });
+      setNotice('Weekly draft generated from all batches in that period.');
+      await refresh();
+    } catch (error: any) {
+      const detail = error.detail;
+      setNotice(detail?.message || detail || 'Weekly draft could not be generated.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return <section className="draft-center-page">
+    <div className="page-hero compact-hero"><div><div className="kicker"><span className="kicker-dot" /> OUTPUT CONTROL ROOM</div><h2>Drafts that are ready to download.</h2><p>Daily records stay separate. Weekly DOCX and PPTX drafts compile every batch inside the selected Asia/Manila period.</p></div><div className="hero-stat"><strong>{drafts.length}</strong><span>private drafts</span></div></div>
+    <section className="card-surface weekly-builder"><div className="builder-copy"><div className="section-icon"><CalendarDays size={19} /></div><div><h3>Build a weekly report</h3><p>Select the scheduled week once. The system compiles all matching batches into one document or presentation.</p></div></div><div className="builder-controls"><label>From<input type="date" value={start} onChange={(event) => setStart(event.target.value)} /></label><label>To<input type="date" value={end} onChange={(event) => setEnd(event.target.value)} /></label><label>Format<select value={weeklyType} onChange={(event) => setWeeklyType(event.target.value)}><option value="DOCX">Weekly DOCX</option><option value="PPTX">Weekly PPTX</option></select></label><button className="button button-primary" onClick={createWeekly} disabled={busy}>{busy ? 'Building…' : 'Build weekly draft'} <ArrowRight size={15} /></button></div>{notice && <div className="inline-notice"><CheckCircle2 size={15} /> {notice}</div>}</section>
+    <section className="card-surface draft-list-card"><div className="section-title"><div><div className="kicker">PRIVATE OUTPUTS</div><h2>Generated drafts</h2></div><button className="quiet-button" onClick={refresh}><RefreshCw size={14} /> Refresh</button></div>{drafts.length === 0 ? <div className="blank-state"><FileText size={21} /><p>No drafts yet. Validate a batch or build a weekly report above.</p></div> : <div className="draft-list">{drafts.map((draft: any) => <div className="draft-row" key={draft.id}><div className="draft-file-icon"><FileText size={18} /></div><div className="draft-row-copy"><strong>{draft.filename}</strong><span>{draft.file_type} · {draft.validation_status} · {draft.generated_at}</span></div><button className="button button-secondary small-button" onClick={() => downloadDraft(draft)}><Download size={14} /> Download</button></div>)}</div>}</section>
+  </section>;
 }
 
 function Overview({ dashboard, openBatch, newBatch }: any) {
@@ -465,14 +530,19 @@ function BatchWorkspace(props: any) {
   const { batch, vehicles, uploads, aiReview, aiResults, addVehicle, uploadPhotos, associatePhoto, makePrimary, deleteUpload, attachDocument, editVehicle, deleteVehicle, validate, warnings, generate, busy } = props;
   const photos = uploads.filter((item: UploadRecord) => item.kind === 'PHOTO');
   const documents = uploads.filter((item: UploadRecord) => item.kind === 'DOCUMENT');
+  const [photoFilter, setPhotoFilter] = useState('all');
+  const matchedPhotos = photos.filter((item: UploadRecord) => item.vehicle_id);
+  const visiblePhotos = photoFilter === 'matched' ? matchedPhotos : photoFilter === 'unmatched' ? photos.filter((item: UploadRecord) => !item.vehicle_id) : photos;
+  const readyCount = vehicles.filter((vehicle: Vehicle) => vehicle.review_status === 'Reviewed').length;
   const blocking = warnings.blocking || [];
   const review = warnings.review || [];
   return <section className="workspace-page">
     <div className="workspace-heading"><div><div className="kicker"><span className="kicker-dot" /> BATCH / {batch.batch_id}</div><h2>{batch.title || 'Untitled operation'}</h2><p>{batch.incident_date} at {batch.incident_time} · {batch.location} <span className="heading-separator">•</span> report period {batch.period_start || 'not set'} to {batch.period_end || 'not set'}</p></div><span className="draft-badge"><span /> Draft</span></div>
     <div className="stepper"><Step active done={photos.length > 0} number="1" title="Upload photos" /><div className="step-line" /><Step active={vehicles.length > 0} done={vehicles.length > 0} number="2" title="Match records" /><div className="step-line" /><Step active={Boolean(warnings.can_generate)} done={false} number="3" title="Generate drafts" /></div>
+    <div className="readiness-strip"><div><span>PHOTOS</span><strong>{photos.length}</strong><small>{matchedPhotos.length} matched</small></div><div><span>VEHICLES</span><strong>{vehicles.length}</strong><small>{readyCount} reviewed</small></div><div><span>DOCUMENTS</span><strong>{documents.length}</strong><small>optional</small></div><div className={warnings.can_generate ? 'readiness-state ready' : 'readiness-state'}><CheckCircle2 size={16} /><span>{warnings.can_generate ? 'Ready to generate' : 'Run a check before generating'}</span></div></div>
     <div className="workspace-columns">
       <div className="workspace-main">
-        <section className="card-surface upload-card"><div className="card-heading"><div><span className="step-number">01</span><div><h3>Upload all vehicle photos</h3><p>Do this once. You can match photos after everything is saved.</p></div></div><span className="count-pill">{photos.length} photo{photos.length === 1 ? '' : 's'}</span></div><label className="dropzone"><div className="dropzone-icon"><Upload size={21} /></div><div><strong>Select multiple photos</strong><span>JPG, PNG or WebP · up to 20 MB each</span></div><span className="button button-secondary small-button">Choose files</span><input type="file" multiple accept="image/jpeg,image/png,image/webp" onChange={uploadPhotos} hidden /></label><p className="helper-line"><LockKeyhole size={14} /> Files are stored privately. <strong>Do not add ID/license files here.</strong> Add those only inside the vehicle they belong to.</p>{aiReview.state !== 'idle' && <AiStatus review={aiReview} />}{photos.length > 0 && <div className="file-list">{photos.map((photo: UploadRecord) => <PhotoRow key={photo.id} photo={photo} vehicles={vehicles} result={aiResults[photo.id]} associate={associatePhoto} makePrimary={makePrimary} remove={deleteUpload} />)}</div>}{documents.length > 0 && <div className="document-summary"><Paperclip size={15} /><span>{documents.length} optional document{documents.length === 1 ? '' : 's'} attached to vehicle records</span></div>}</section>
+        <section className="card-surface upload-card"><div className="card-heading"><div><span className="step-number">01</span><div><h3>Upload all vehicle photos</h3><p>Do this once. You can match photos after everything is saved.</p></div></div><span className="count-pill">{photos.length} photo{photos.length === 1 ? '' : 's'}</span></div><label className="dropzone" onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); void uploadPhotos(Array.from(event.dataTransfer.files)); }}><div className="dropzone-icon"><Upload size={21} /></div><div><strong>Drop photos here or choose files</strong><span>JPG, PNG or WebP · up to 20 MB each</span></div><span className="button button-secondary small-button">Choose files</span><input type="file" multiple accept="image/jpeg,image/png,image/webp" onChange={uploadPhotos} hidden /></label><p className="helper-line"><LockKeyhole size={14} /> Files are stored privately. <strong>Do not add ID/license files here.</strong> Add those only inside the vehicle they belong to.</p>{aiReview.state !== 'idle' && <AiStatus review={aiReview} />}{photos.length > 0 && <><div className="file-toolbar"><div><Filter size={14} /> Show</div><button className={photoFilter === 'all' ? 'filter-chip active' : 'filter-chip'} onClick={() => setPhotoFilter('all')}>All {photos.length}</button><button className={photoFilter === 'unmatched' ? 'filter-chip active' : 'filter-chip'} onClick={() => setPhotoFilter('unmatched')}>Unmatched {photos.length - matchedPhotos.length}</button><button className={photoFilter === 'matched' ? 'filter-chip active' : 'filter-chip'} onClick={() => setPhotoFilter('matched')}>Matched {matchedPhotos.length}</button></div><div className="file-list">{visiblePhotos.map((photo: UploadRecord) => <PhotoRow key={photo.id} photo={photo} vehicles={vehicles} result={aiResults[photo.id]} associate={associatePhoto} makePrimary={makePrimary} remove={deleteUpload} />)}{visiblePhotos.length === 0 && <div className="blank-state"><Search size={18} /><p>No files in this view.</p></div>}</div></>}{documents.length > 0 && <div className="document-summary"><Paperclip size={15} /><span>{documents.length} optional document{documents.length === 1 ? '' : 's'} attached to vehicle records</span></div>}</section>
 
         <section className="card-surface vehicle-card-section"><div className="card-heading"><div><span className="step-number">02</span><div><h3>Match and complete vehicles</h3><p>One record per actual vehicle — never one record per photo.</p></div></div><button className="button button-secondary small-button" onClick={addVehicle} disabled={Boolean(busy)}><Plus size={15} /> Add vehicle</button></div>{vehicles.length === 0 ? <div className="vehicle-empty"><div className="vehicle-empty-icon"><Car size={24} /></div><div><strong>Upload first, then add one record per vehicle.</strong><p>This keeps duplicate records out of your batch. Your photos are already safe above.</p></div><button className="link-button" onClick={addVehicle}>Add first vehicle <ArrowRight size={15} /></button></div> : <div className="vehicle-list">{vehicles.map((vehicle: Vehicle, index: number) => <VehicleCard key={vehicle.id} vehicle={vehicle} index={index} uploads={uploads} onSave={editVehicle} onDelete={deleteVehicle} attachDocument={attachDocument} busy={busy} />)}</div>}</section>
       </div>
