@@ -10,7 +10,7 @@ from .db import conn, execute, get_row, list_rows, now, weekly_batches, batch_ve
 from .services.report_generator import validate_batch, daily_txt, weekly_docx, weekly_pptx, weekly_docx_aggregate, weekly_pptx_aggregate
 from .services.gemini_analysis import analyze_image
 from .services.make_webhook import send_draft_event
-ROOT=Path(__file__).resolve().parents[2]; RUNTIME_ROOT=Path('/tmp') if os.getenv('VERCEL') else ROOT; STORAGE=Path(os.getenv('GSCHPT_STORAGE_DIR',RUNTIME_ROOT/'generated_drafts')); PRIVATE=Path(os.getenv('GSCHPT_PRIVATE_STORAGE_DIR',RUNTIME_ROOT/'storage'/'private')); TEMPLATE_DIR=Path(os.getenv('GSCHPT_TEMPLATE_DIR',ROOT/'templates')); STORAGE.mkdir(parents=True,exist_ok=True); PRIVATE.mkdir(parents=True,exist_ok=True); TEMPLATE_DIR.mkdir(parents=True,exist_ok=True)
+ROOT=Path(__file__).resolve().parents[2]; PACKAGE_ROOT=Path(__file__).resolve().parent; RUNTIME_ROOT=Path('/tmp') if os.getenv('VERCEL') else ROOT; STORAGE=Path(os.getenv('GSCHPT_STORAGE_DIR',RUNTIME_ROOT/'generated_drafts')); PRIVATE=Path(os.getenv('GSCHPT_PRIVATE_STORAGE_DIR',RUNTIME_ROOT/'storage'/'private')); TEMPLATE_DIR=Path(os.getenv('GSCHPT_TEMPLATE_DIR',ROOT/'templates')); BUNDLED_TEMPLATE_DIR=PACKAGE_ROOT/'templates'; STORAGE.mkdir(parents=True,exist_ok=True); PRIVATE.mkdir(parents=True,exist_ok=True); TEMPLATE_DIR.mkdir(parents=True,exist_ok=True)
 ALLOWED_ORIGINS=[x.strip() for x in os.getenv('GSCHPT_ALLOWED_ORIGINS','http://localhost:5173,http://127.0.0.1:5173').split(',') if x.strip()]
 app=FastAPI(title='GSCHPT Reporting Dashboard API'); app.add_middleware(CORSMiddleware,allow_origins=ALLOWED_ORIGINS,allow_methods=['*'],allow_headers=['*'])
 IMAGE_TYPES={'.jpg':'image/jpeg','.jpeg':'image/jpeg','.png':'image/png','.webp':'image/webp'}; DOC_TYPES={'.pdf':'application/pdf','.jpg':'image/jpeg','.jpeg':'image/jpeg','.png':'image/png','.webp':'image/webp'}; MAX_UPLOAD=int(os.getenv('GSCHPT_MAX_UPLOAD_MB','20'))*1024*1024
@@ -28,8 +28,11 @@ def vehicle_or_404(vehicle_id):
 def template_for(kind, active=None):
     if active and Path(active['path']).is_file(): return Path(active['path'])
     bundled={'TXT':'daily_master.txt','DOCX':'weekly_master.docx','PPTX':'weekly_master.pptx'}.get(kind)
-    candidate=TEMPLATE_DIR/bundled if bundled else None
-    return candidate if candidate and candidate.is_file() else None
+    if not bundled: return None
+    for directory in (TEMPLATE_DIR, BUNDLED_TEMPLATE_DIR):
+        candidate=directory/bundled
+        if candidate.is_file(): return candidate
+    return None
 def available_template_types():
     types={x['file_type'] for x in list_rows('SELECT * FROM templates WHERE active=1')}
     return types | {kind for kind in ('TXT','DOCX','PPTX') if template_for(kind)}
