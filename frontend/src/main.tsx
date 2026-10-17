@@ -133,6 +133,7 @@ function App() {
   const [aiReview, setAiReview] = useState({ state: 'idle', total: 0, done: 0, errors: 0 });
   const [aiResults, setAiResults] = useState<Record<number, any>>({});
   const [drafts, setDrafts] = useState<any[]>([]);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const loadDashboard = async () => {
     try {
@@ -167,6 +168,7 @@ function App() {
 
   const navigateTab = (next: string) => {
     setTab(next);
+    setSidebarOpen(false);
     if (next === 'Generated Drafts') void loadDrafts();
   };
 
@@ -397,7 +399,7 @@ function App() {
 
   return (
     <div className="app-shell">
-      <aside className="sidebar">
+      <aside className={sidebarOpen ? 'sidebar open' : 'sidebar'}>
         <div className="brand-lockup">
           <div className="brand-mark"><ShieldCheck size={19} /></div>
           <div><strong>GSCHPT</strong><span>REPORTING DESK</span></div>
@@ -411,12 +413,13 @@ function App() {
         </nav>
         <div className="privacy-badge"><LockKeyhole size={15} /><span>Private workspace<br /><small>Draft outputs only</small></span></div>
       </aside>
+      {sidebarOpen && <button className="sidebar-scrim" aria-label="Close navigation" onClick={() => setSidebarOpen(false)} />}
 
       <main className="main-content">
         <header className="topbar">
           <div className="mobile-brand"><div className="brand-mark"><ShieldCheck size={17} /></div><strong>GSCHPT</strong></div>
           <div><div className="breadcrumb">OPERATIONS <span>/</span> {tab.toUpperCase()}</div><h1>{tab === 'Overview' ? 'Reporting dashboard' : tab}</h1></div>
-          <div className="topbar-right"><span className="manila-dot" /> Asia/Manila <span className="today">{new Date().toLocaleDateString()}</span><button className="mobile-menu" aria-label="Menu"><Menu size={19} /></button></div>
+          <div className="topbar-right"><span className="manila-dot" /> Asia/Manila <span className="today">{new Date().toLocaleDateString()}</span><button className="mobile-menu" aria-label="Open navigation" onClick={() => setSidebarOpen(true)}><Menu size={19} /></button></div>
         </header>
 
         {busy && <div className="busy-bar"><LoaderCircle size={15} className="spin" /> {busy}<span>Local save in progress</span></div>}
