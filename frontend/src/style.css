@@ -63,6 +63,12 @@ p { color: var(--muted); line-height: 1.6; }
 
 .card-surface { background: var(--surface); border: 1px solid rgba(213,226,223,.8); border-radius: 16px; box-shadow: var(--shadow); }
 .hero-panel { min-height: 290px; padding: 44px clamp(27px, 5vw, 60px); display: flex; align-items: center; justify-content: space-between; overflow: hidden; position: relative; background: linear-gradient(125deg, #dcefeb 0%, #edf6f3 62%, #f9f1df 100%); border: 1px solid #d1e6e0; border-radius: 18px; }
+.dashboard-loading { min-height: 290px; display: flex; align-items: center; gap: 20px; padding: 40px clamp(27px, 5vw, 60px); background: linear-gradient(125deg, #e1f1ed 0%, #f2f8f5 64%, #fbf3e3 100%); border-color: #d1e6e0; }
+.dashboard-loading h2 { margin: 12px 0 8px; font-size: clamp(27px, 3vw, 35px); }
+.dashboard-loading p { max-width: 540px; margin-bottom: 0; font-size: 13px; }
+.loading-orbit { display: grid; place-items: center; width: 58px; height: 58px; flex: 0 0 auto; color: var(--teal); background: rgba(255,255,255,.72); border: 1px solid rgba(255,255,255,.9); border-radius: 18px; box-shadow: 0 8px 22px rgba(19,75,81,.1); }
+.loading-orbit.error { color: var(--amber); background: #fff9ec; }
+.dashboard-error p { margin-bottom: 17px; }
 .hero-panel::after { content: ""; position: absolute; width: 250px; height: 250px; right: -80px; bottom: -100px; border: 1px solid rgba(36, 120, 125, .13); border-radius: 50%; box-shadow: 0 0 0 22px rgba(36,120,125,.04), 0 0 0 44px rgba(36,120,125,.03); }
 .hero-copy { max-width: 600px; position: relative; z-index: 1; }
 .hero-copy h2 { max-width: 550px; margin-top: 16px; }
@@ -324,6 +330,9 @@ form { margin-top: 20px; }
   .breadcrumb { font-size: 9px; }
   h1 { font-size: 25px; }
   .hero-panel { min-height: 0; padding: 27px 21px; }
+  .dashboard-loading { min-height: 300px; align-items: flex-start; padding: 28px 21px; gap: 14px; }
+  .dashboard-loading h2 { font-size: 27px; }
+  .dashboard-loading p { font-size: 12px; }
   .hero-copy h2 { font-size: 30px; }
   .hero-copy p { font-size: 13px; }
   .hero-orbit { display: none; }

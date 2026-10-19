@@ -134,12 +134,23 @@ function App() {
   const [aiResults, setAiResults] = useState<Record<number, any>>({});
   const [drafts, setDrafts] = useState<any[]>([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [dashboardState, setDashboardState] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [dashboardError, setDashboardError] = useState('');
 
   const loadDashboard = async () => {
+    setDashboardState('loading');
+    setDashboardError('');
     try {
-      setDashboard(await api('/dashboard'));
+      const result = await Promise.race([
+        api('/dashboard'),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('The secure workspace is taking longer than expected.')), 18000)),
+      ]);
+      setDashboard(result as any);
+      setDashboardState('ready');
     } catch (error: any) {
-      setMessage(error.detail || 'The dashboard could not be loaded.');
+      const detail = error.detail || error.message || 'The dashboard could not be loaded.';
+      setDashboardError(detail);
+      setDashboardState('error');
     }
   };
 
@@ -425,7 +436,7 @@ function App() {
         {busy && <div className="busy-bar"><LoaderCircle size={15} className="spin" /> {busy}<span>Local save in progress</span></div>}
         {message && <div className="toast" role="status"><Check size={16} /><span>{message}</span><button aria-label="Dismiss message" onClick={() => setMessage('')}><X size={15} /></button></div>}
 
-        {tab === 'Overview' && <Overview dashboard={dashboard} openBatch={openBatch} newBatch={goNew} />}
+        {tab === 'Overview' && <Overview dashboard={dashboard} dashboardState={dashboardState} dashboardError={dashboardError} retry={loadDashboard} openBatch={openBatch} newBatch={goNew} />}
         {tab === 'New Batch' && <BatchForm batch={batch} setBatch={setBatch} save={saveBatch} busy={busy} />}
         {tab === 'Batch' && (
           <BatchWorkspace
@@ -502,7 +513,9 @@ function DraftCenter({ drafts, refresh }: any) {
   </section>;
 }
 
-function Overview({ dashboard, openBatch, newBatch }: any) {
+function Overview({ dashboard, dashboardState, dashboardError, retry, openBatch, newBatch }: any) {
+  if (dashboardState === 'loading') return <section className="dashboard-loading card-surface" aria-busy="true"><div className="loading-orbit"><LoaderCircle size={22} className="spin" /></div><div><div className="kicker">SECURE WORKSPACE</div><h2>Waking the reporting desk…</h2><p>The first request may take a moment while the private workspace connects. Your records are not being processed by AI.</p></div></section>;
+  if (dashboardState === 'error') return <section className="dashboard-loading dashboard-error card-surface"><div className="loading-orbit error"><AlertCircle size={22} /></div><div><div className="kicker">CONNECTION DELAY</div><h2>The dashboard did not respond yet.</h2><p>{dashboardError} You can retry without losing any records.</p><button className="button button-primary" onClick={retry}><RefreshCw size={15} /> Retry connection</button></div></section>;
   return <>
     <section className="hero-panel">
       <div className="hero-copy"><div className="kicker"><span className="kicker-dot" /> REPORT PREPARATION</div><h2>Move from <em>collected files</em> to a clean draft.</h2><p>Upload the operation’s photos once, match them to vehicle records, then generate your daily or weekly report.</p><button className="button button-primary" onClick={newBatch}><Plus size={17} /> Start a batch <ArrowRight size={16} /></button></div>
