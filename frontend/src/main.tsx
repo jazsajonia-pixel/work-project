@@ -148,15 +148,24 @@ function App() {
   const [drafts, setDrafts] = useState<any[]>([]);
   const [draftsReady, setDraftsReady] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [dashboardError, setDashboardError] = useState('');
 
   const notice = useCallback((text: string, kind: Notice['kind'] = 'ok') => setMessage({ text, kind }), []);
 
   const loadDashboard = useCallback(async () => {
+    setDashboardError('');
+    setDashboardReady(false);
     try {
-      setDashboard(await api('/dashboard'));
+      const result = await Promise.race([
+        api('/dashboard'),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('The secure workspace is taking longer than expected.')), 18000)),
+      ]);
+      setDashboard(result as any);
       setDashboardReady(true);
     } catch (error: any) {
-      notice(error.detail || 'The dashboard could not be loaded.', 'error');
+      const detail = error.detail || error.message || 'The dashboard could not be loaded.';
+      setDashboardError(detail);
+      notice(`${detail} You can retry without losing records.`, 'error');
     }
   }, [notice]);
 
@@ -457,7 +466,7 @@ function App() {
         )}
 
         <div key={tab} className="page-enter">
-          {tab === 'Overview' && <Overview dashboard={dashboard} ready={dashboardReady} openBatch={openBatch} newBatch={goNew} />}
+          {tab === 'Overview' && <Overview dashboard={dashboard} ready={dashboardReady} dashboardError={dashboardError} retry={loadDashboard} openBatch={openBatch} newBatch={goNew} />}
           {tab === 'New Batch' && <BatchForm batch={batch} save={saveBatch} busy={busy} />}
           {tab === 'Batch' && (
             <BatchWorkspace
@@ -546,8 +555,9 @@ const DraftCenter = memo(function DraftCenter({ drafts, ready, refresh }: any) {
   </section>;
 });
 
-const Overview = memo(function Overview({ dashboard, ready, openBatch, newBatch }: any) {
+const Overview = memo(function Overview({ dashboard, ready, dashboardError, retry, openBatch, newBatch }: any) {
   if (!ready) {
+    if (dashboardError) return <section className="dashboard-loading dashboard-error card-surface"><div className="loading-orbit error"><AlertCircle size={22} /></div><div><div className="kicker">CONNECTION DELAY</div><h2>The dashboard did not respond yet.</h2><p>{dashboardError} You can retry without losing any records.</p><button className="button button-primary" onClick={retry}><RefreshCw size={15} /> Retry connection</button></div></section>;
     return <>
       <section className="hero-panel" aria-busy="true"><div className="hero-copy"><div className="skeleton-block w-40" /><div className="skeleton-block tall w-80" /><div className="skeleton-block w-60" /><span className="sr-only">Loading dashboard…</span></div></section>
       <div className="stat-strip">
