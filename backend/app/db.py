@@ -35,6 +35,15 @@ def list_rows(query,args=()):
     with conn() as c: return [dict(x) for x in c.execute(_sql(query),args).fetchall()]
 def get_row(query,args=()):
     with conn() as c: return rowdict(c.execute(_sql(query),args).fetchone())
+def dashboard_snapshot():
+    """Read the dashboard in one database session instead of opening seven sessions."""
+    with conn() as c:
+        total_batches=c.execute(_sql('SELECT COUNT(*) AS c FROM batches')).fetchone()['c']
+        draft_reports=c.execute(_sql('SELECT COUNT(*) AS c FROM generated_reports')).fetchone()['c']
+        pending_vehicles=c.execute(_sql("SELECT COUNT(*) AS c FROM vehicles WHERE review_status!='Reviewed'")).fetchone()['c']
+        recent_batches=[dict(row) for row in c.execute(_sql('SELECT * FROM batches ORDER BY id DESC LIMIT 5')).fetchall()]
+        templates=[dict(row) for row in c.execute(_sql('SELECT * FROM templates ORDER BY file_type,id DESC')).fetchall()]
+        return {'total_batches':total_batches,'draft_reports':draft_reports,'pending_vehicles':pending_vehicles,'records_review':pending_vehicles,'recent_batches':recent_batches,'templates':templates}
 def weekly_batches(period_start, period_end):
     return list_rows("SELECT * FROM batches WHERE COALESCE(NULLIF(period_start,''),incident_date)<=? AND COALESCE(NULLIF(period_end,''),incident_date)>=? ORDER BY incident_date, id",(period_end,period_start))
 def batch_vehicles(batch_ids):

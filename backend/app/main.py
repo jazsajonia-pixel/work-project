@@ -6,7 +6,7 @@ from fastapi import FastAPI, HTTPException, UploadFile, File, Header, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
-from .db import conn, execute, get_row, list_rows, now, weekly_batches, batch_vehicles, batch_uploads
+from .db import conn, dashboard_snapshot, execute, get_row, list_rows, now, weekly_batches, batch_vehicles, batch_uploads
 from .services.report_generator import validate_batch, daily_txt, weekly_docx, weekly_pptx, weekly_docx_aggregate, weekly_pptx_aggregate
 from .services.gemini_analysis import analyze_image
 from .services.make_webhook import send_draft_event
@@ -53,7 +53,7 @@ def health():
         raise HTTPException(503,'Database unavailable') from exc
 @app.get('/api/dashboard')
 def dashboard(x_dev_user:str|None=Header(None)):
-    auth(x_dev_user); return {'total_batches':get_row('SELECT COUNT(*) c FROM batches')['c'],'draft_reports':get_row('SELECT COUNT(*) c FROM generated_reports')['c'],'pending_vehicles':get_row("SELECT COUNT(*) c FROM vehicles WHERE review_status!='Reviewed'")['c'],'records_review':get_row("SELECT COUNT(*) c FROM vehicles WHERE review_status!='Reviewed'")['c'],'recent_batches':list_rows('SELECT * FROM batches ORDER BY id DESC LIMIT 5'),'templates':list_rows('SELECT * FROM templates ORDER BY file_type,id DESC')}
+    auth(x_dev_user); return dashboard_snapshot()
 @app.post('/api/batches')
 def create_batch(data:BatchIn,x_dev_user:str|None=Header(None)):
     auth(x_dev_user); prep=datetime.now(ZoneInfo('Asia/Manila')).date().isoformat()
