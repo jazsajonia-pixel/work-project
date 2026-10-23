@@ -1,4 +1,4 @@
-import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
   AlertCircle,
@@ -133,10 +133,21 @@ const navItems = [
   ['Templates', Settings],
 ] as const;
 
+const DASHBOARD_CACHE_KEY = 'gschpt.dashboard.snapshot.v1';
+function readDashboardCache() {
+  try {
+    const raw = sessionStorage.getItem(DASHBOARD_CACHE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
 function App() {
   const [tab, setTab] = useState('Overview');
-  const [dashboard, setDashboard] = useState<any>({});
-  const [dashboardReady, setDashboardReady] = useState(false);
+  const [dashboard, setDashboard] = useState<any>(() => readDashboardCache() || {});
+  const [dashboardReady, setDashboardReady] = useState(() => Boolean(readDashboardCache()));
+  const dashboardReadyRef = useRef(dashboardReady);
   const [batch, setBatch] = useState<Batch>(newBatch());
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [uploads, setUploads] = useState<UploadRecord[]>([]);
@@ -154,18 +165,19 @@ function App() {
 
   const loadDashboard = useCallback(async () => {
     setDashboardError('');
-    setDashboardReady(false);
     try {
       const result = await Promise.race([
         api('/dashboard'),
         new Promise((_, reject) => setTimeout(() => reject(new Error('The secure workspace is taking longer than expected.')), 18000)),
       ]);
       setDashboard(result as any);
+      try { sessionStorage.setItem(DASHBOARD_CACHE_KEY, JSON.stringify(result)); } catch { /* cache is optional */ }
+      dashboardReadyRef.current = true;
       setDashboardReady(true);
     } catch (error: any) {
       const detail = error.detail || error.message || 'The dashboard could not be loaded.';
       setDashboardError(detail);
-      notice(`${detail} You can retry without losing records.`, 'error');
+      notice(dashboardReadyRef.current ? `Showing the last saved dashboard snapshot. ${detail}` : `${detail} You can retry without losing records.`, dashboardReadyRef.current ? 'warn' : 'error');
     }
   }, [notice]);
 
