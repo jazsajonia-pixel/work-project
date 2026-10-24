@@ -160,6 +160,7 @@ function App() {
   const [draftsReady, setDraftsReady] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [dashboardError, setDashboardError] = useState('');
+  const [storageMode, setStorageMode] = useState<'local' | 'ephemeral' | 'unknown'>('unknown');
 
   const notice = useCallback((text: string, kind: Notice['kind'] = 'ok') => setMessage({ text, kind }), []);
 
@@ -214,6 +215,10 @@ function App() {
   useEffect(() => {
     void loadDashboard();
   }, [loadDashboard]);
+
+  useEffect(() => {
+    void api('/health').then((health) => setStorageMode(health.storage || 'unknown')).catch(() => setStorageMode('unknown'));
+  }, []);
 
   useEffect(() => {
     if (!message) return;
@@ -476,6 +481,7 @@ function App() {
             )}
           </div>
         )}
+        {storageMode === 'ephemeral' && <div className="storage-warning" role="status"><AlertCircle size={15} /><span><strong>Temporary file storage:</strong> uploads and generated drafts may be cleared by the hosting platform. Connect durable private object storage before operational use.</span></div>}
 
         <div key={tab} className="page-enter">
           {tab === 'Overview' && <Overview dashboard={dashboard} ready={dashboardReady} dashboardError={dashboardError} retry={loadDashboard} openBatch={openBatch} newBatch={goNew} />}

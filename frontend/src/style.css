@@ -59,6 +59,9 @@ p { color: var(--muted); line-height: 1.6; }
 .busy-bar span { margin-left: auto; color: #6d9291; font-size: 11px; }
 .toast { display: flex; align-items: center; gap: 9px; color: #1e675b; background: #e9f7f1; border: 1px solid #c6e9da; border-radius: 10px; padding: 11px 13px; margin-bottom: 16px; font-size: 13px; animation: slide-in .22s ease both; }
 .toast button { display: grid; place-items: center; margin-left: auto; color: #6e9991; border: 0; background: transparent; padding: 3px; }
+.storage-warning { display: flex; align-items: flex-start; gap: 8px; margin: -7px 0 16px; padding: 10px 12px; color: #805f2e; background: #fff8e9; border: 1px solid #f0d8aa; border-radius: 10px; font-size: 11px; line-height: 1.45; animation: slide-in .22s ease both; }
+.storage-warning svg { flex: 0 0 auto; color: var(--amber); margin-top: 1px; }
+.storage-warning strong { color: #68491f; }
 .spin { animation: spin 1s linear infinite; }
 
 .card-surface { background: var(--surface); border: 1px solid rgba(213,226,223,.8); border-radius: 16px; box-shadow: var(--shadow); }
