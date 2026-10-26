@@ -4,12 +4,13 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 from fastapi import FastAPI, HTTPException, UploadFile, File, Header, Form
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel, Field
 from .db import conn, dashboard_snapshot, execute, get_row, list_rows, now, weekly_batches, batch_vehicles, batch_uploads
 from .services.report_generator import validate_batch, daily_txt, weekly_docx, weekly_pptx, weekly_docx_aggregate, weekly_pptx_aggregate
 from .services.gemini_analysis import analyze_image
 from .services.make_webhook import send_draft_event
+from .storage import materialize, persistent_enabled, put as put_blob, read as read_blob, remove as remove_blob, storage_mode
 ROOT=Path(__file__).resolve().parents[2]; PACKAGE_ROOT=Path(__file__).resolve().parent; RUNTIME_ROOT=Path('/tmp') if os.getenv('VERCEL') else ROOT; STORAGE=Path(os.getenv('GSCHPT_STORAGE_DIR',RUNTIME_ROOT/'generated_drafts')); PRIVATE=Path(os.getenv('GSCHPT_PRIVATE_STORAGE_DIR',RUNTIME_ROOT/'storage'/'private')); TEMPLATE_DIR=Path(os.getenv('GSCHPT_TEMPLATE_DIR',ROOT/'templates')); BUNDLED_TEMPLATE_DIR=PACKAGE_ROOT/'templates'; STORAGE.mkdir(parents=True,exist_ok=True); PRIVATE.mkdir(parents=True,exist_ok=True); TEMPLATE_DIR.mkdir(parents=True,exist_ok=True)
 ALLOWED_ORIGINS=[x.strip() for x in os.getenv('GSCHPT_ALLOWED_ORIGINS','http://localhost:5173,http://127.0.0.1:5173').split(',') if x.strip()]
 app=FastAPI(title='GSCHPT Reporting Dashboard API'); app.add_middleware(CORSMiddleware,allow_origins=ALLOWED_ORIGINS,allow_methods=['*'],allow_headers=['*'])
@@ -26,7 +27,7 @@ def vehicle_or_404(vehicle_id):
     if not v: raise HTTPException(404,'Vehicle not found')
     return v
 def template_for(kind, active=None):
-    if active and Path(active['path']).is_file(): return Path(active['path'])
+    if active and (str(active['path']).startswith('blob:') or Path(active['path']).is_file()): return materialize(active['path'])
     bundled={'TXT':'daily_master.txt','DOCX':'weekly_master.docx','PPTX':'weekly_master.pptx'}.get(kind)
     if not bundled: return None
     for directory in (TEMPLATE_DIR, BUNDLED_TEMPLATE_DIR):
@@ -48,7 +49,7 @@ def startup(): conn().close()
 def health():
     try:
         row=get_row('SELECT 1 AS database_check')
-        return {'ok':True,'database':'connected' if row and row['database_check']==1 else 'unknown','storage':'ephemeral' if os.getenv('VERCEL') else 'local'}
+        return {'ok':True,'database':'connected' if row and row['database_check']==1 else 'unknown','storage':storage_mode()}
     except Exception as exc:
         raise HTTPException(503,'Database unavailable') from exc
 @app.get('/api/dashboard')
@@ -83,7 +84,13 @@ def save_upload(batch_id,file,kind,vehicle_id=None,document_type=''):
     if ext not in allowed: raise HTTPException(400,f'Unsupported {kind.lower()} file type.')
     data=file.file.read()
     if len(data)>MAX_UPLOAD: raise HTTPException(413,'File exceeds 20 MB limit.')
-    safe=f'{uuid.uuid4().hex}{ext}'; path=PRIVATE/safe; path.write_bytes(data); uid=execute('INSERT INTO uploads(batch_id,vehicle_id,kind,filename,content_type,path,document_type,created_at) VALUES(?,?,?,?,?,?,?,?)',(batch_id,vehicle_id,kind,Path(file.filename or safe).name,allowed[ext],str(path),document_type,now())); return get_row('SELECT id,batch_id,vehicle_id,kind,filename,content_type,primary_image,document_type,created_at FROM uploads WHERE id=?',(uid,))
+    safe=f'{uuid.uuid4().hex}{ext}'; path=str(PRIVATE/safe)
+    if persistent_enabled(): path=put_blob(f'uploads/{safe}',data,allowed[ext])
+    else: Path(path).write_bytes(data)
+    uid=execute('INSERT INTO uploads(batch_id,vehicle_id,kind,filename,content_type,path,document_type,created_at) VALUES(?,?,?,?,?,?,?,?)',(batch_id,vehicle_id,kind,Path(file.filename or safe).name,allowed[ext],path,document_type,now())); return get_row('SELECT id,batch_id,vehicle_id,kind,filename,content_type,primary_image,document_type,created_at FROM uploads WHERE id=?',(uid,))
+def publish_generated(path,content_type):
+    if not persistent_enabled(): return str(path)
+    reference=put_blob(f'drafts/{path.name}',path.read_bytes(),content_type); path.unlink(missing_ok=True); return reference
 @app.post('/api/batches/{batch_id}/photos')
 def upload_photos(batch_id:str,files:list[UploadFile]=File(...),x_dev_user:str|None=Header(None)):
     auth(x_dev_user); batch_or_404(batch_id); return [save_upload(batch_id,f,'PHOTO') for f in files]
@@ -103,17 +110,20 @@ def associate_upload(upload_id:int,vehicle_id:int|None=None,primary_image:bool=F
 def delete_upload(upload_id:int,x_dev_user:str|None=Header(None)):
     auth(x_dev_user); u=get_row('SELECT * FROM uploads WHERE id=?',(upload_id,));
     if not u: raise HTTPException(404,'Upload not found')
-    Path(u['path']).unlink(missing_ok=True); execute('DELETE FROM uploads WHERE id=?',(upload_id,)); return {'deleted':True}
+    remove_blob(u['path']); execute('DELETE FROM uploads WHERE id=?',(upload_id,)); return {'deleted':True}
 @app.post('/api/uploads/{upload_id}/analyze')
 def analyze_upload(upload_id:int,x_dev_user:str|None=Header(None)):
     auth(x_dev_user); u=get_row('SELECT * FROM uploads WHERE id=?',(upload_id,))
-    if not u or u['kind']!='PHOTO' or not Path(u['path']).is_file(): raise HTTPException(404,'Photo not found')
-    try: return analyze_image(Path(u['path']),u['content_type'],u['filename'])
+    if not u or u['kind']!='PHOTO': raise HTTPException(404,'Photo not found')
+    try: return analyze_image(materialize(u['path']),u['content_type'],u['filename'])
     except RuntimeError as exc: raise HTTPException(503,str(exc)) from exc
 @app.get('/api/uploads/{upload_id}/download')
 def download_upload(upload_id:int,x_dev_user:str|None=Header(None)):
     auth(x_dev_user); u=get_row('SELECT * FROM uploads WHERE id=?',(upload_id,));
-    if not u or not Path(u['path']).is_file(): raise HTTPException(404,'Upload not found')
+    if not u: raise HTTPException(404,'Upload not found')
+    if str(u['path']).startswith('blob:'):
+        return Response(read_blob(u['path']),media_type=u['content_type'],headers={'Content-Disposition':f'attachment; filename="{u["filename"]}"'})
+    if not Path(u['path']).is_file(): raise HTTPException(404,'Upload not found')
     return FileResponse(u['path'],filename=u['filename'],media_type=u['content_type'])
 def validation(batch_id):
     b=batch_or_404(batch_id); vs=list_rows('SELECT * FROM vehicles WHERE batch_id=?',(batch_id,)); us=list_rows('SELECT * FROM uploads WHERE batch_id=?',(batch_id,)); return validate_batch(b,vs,us,available_template_types())
@@ -126,11 +136,11 @@ def draft(batch_id:str,kind:str,x_dev_user:str|None=Header(None)):
     kind=kind.upper(); ext={'TXT':'.txt','DOCX':'.docx','PPTX':'.pptx'}.get(kind)
     if not ext: raise HTTPException(400,'Supported draft types: TXT, DOCX, PPTX')
     active=get_row('SELECT * FROM templates WHERE file_type=? AND active=1 ORDER BY id DESC',(kind,)); template=template_for(kind,active); filename=f"DRAFT_{batch_id}_{datetime.now().strftime('%Y%m%d%H%M%S')}{ext}"; path=STORAGE/filename
-    uploads=list_rows('SELECT * FROM uploads WHERE batch_id=?',(batch_id,))
+    uploads=[{**u,'path':str(materialize(u['path']))} for u in list_rows('SELECT * FROM uploads WHERE batch_id=?',(batch_id,))]
     if kind=='TXT': path.write_text(daily_txt(b,vs),encoding='utf-8')
     elif kind=='DOCX': weekly_docx(path,b,vs,template,uploads)
     else: weekly_pptx(path,b,vs,template,uploads)
-    version=active['version'] if active else ('bundled-master-v1' if template else 'fallback-safe-v1'); status='Passed — draft only' if not result['review'] else 'Generated — review warnings'; generated_at=now(); report_id=execute('INSERT INTO generated_reports(batch_id,file_type,filename,path,template_version,validation_status,generated_at) VALUES(?,?,?,?,?,?,?)',(batch_id,kind,filename,str(path),version,status,generated_at)); make_status=send_draft_event({'event':'gschpt.draft.generated','report_id':report_id,'batch_id':batch_id,'file_type':kind,'filename':filename,'template_version':version,'validation_status':status,'generated_at':generated_at}); return {'report_id':report_id,'filename':filename,'validation_status':status,'make_webhook':make_status,'blocking':[],'review':result['review']}
+    stored_path=publish_generated(path,{'TXT':'text/plain','DOCX':'application/vnd.openxmlformats-officedocument.wordprocessingml.document','PPTX':'application/vnd.openxmlformats-officedocument.presentationml.presentation'}[kind]); version=active['version'] if active else ('bundled-master-v1' if template else 'fallback-safe-v1'); status='Passed — draft only' if not result['review'] else 'Generated — review warnings'; generated_at=now(); report_id=execute('INSERT INTO generated_reports(batch_id,file_type,filename,path,template_version,validation_status,generated_at) VALUES(?,?,?,?,?,?,?)',(batch_id,kind,filename,stored_path,version,status,generated_at)); make_status=send_draft_event({'event':'gschpt.draft.generated','report_id':report_id,'batch_id':batch_id,'file_type':kind,'filename':filename,'template_version':version,'validation_status':status,'generated_at':generated_at}); return {'report_id':report_id,'filename':filename,'validation_status':status,'make_webhook':make_status,'blocking':[],'review':result['review']}
 @app.post('/api/reports/weekly')
 def weekly_report(data:WeeklyReportIn,x_dev_user:str|None=Header(None)):
     auth(x_dev_user)
@@ -138,20 +148,23 @@ def weekly_report(data:WeeklyReportIn,x_dev_user:str|None=Header(None)):
     batches=weekly_batches(data.period_start,data.period_end)
     if not batches: raise HTTPException(422,'No batches fall within the requested reporting period.')
     ids=[b['batch_id'] for b in batches]; vehicles=batch_vehicles(ids); uploads=batch_uploads(ids); active_types=available_template_types(); blocking=[]; review=[]
+    generation_uploads=[{**u,'path':str(materialize(u['path']))} for u in uploads]
     for batch in batches:
         result=validate_batch(batch,[v for v in vehicles if v['batch_id']==batch['batch_id']],[u for u in uploads if u['batch_id']==batch['batch_id']],active_types)
         blocking.extend(f"{batch['batch_id']}: {message}" for message in result['blocking']); review.extend(f"{batch['batch_id']}: {message}" for message in result['review'])
     if blocking: raise HTTPException(422,detail={'message':'Blocking validation errors must be resolved.','blocking':blocking,'review':review})
     kind=data.file_type.upper(); active=get_row('SELECT * FROM templates WHERE file_type=? AND active=1 ORDER BY id DESC',(kind,)); template=template_for(kind,active); key=f'{data.period_start}_TO_{data.period_end}'; ext='.docx' if kind=='DOCX' else '.pptx'; filename=f'WEEKLY_{key}{ext}'; path=STORAGE/filename
-    if kind=='DOCX': weekly_docx_aggregate(path,data.period_start,data.period_end,batches,vehicles,template,uploads)
-    else: weekly_pptx_aggregate(path,data.period_start,data.period_end,batches,vehicles,template,uploads)
-    version=active['version'] if active else ('bundled-master-v1' if template else 'fallback-safe-v1'); status='Passed — weekly draft only' if not review else 'Generated — weekly review warnings'; generated_at=now(); scope=f'WEEKLY:{key}'; report_id=execute('INSERT INTO generated_reports(batch_id,file_type,filename,path,template_version,validation_status,generated_at) VALUES(?,?,?,?,?,?,?)',(scope,kind,filename,str(path),version,status,generated_at)); make_status=send_draft_event({'event':'gschpt.draft.generated','report_id':report_id,'batch_id':scope,'file_type':kind,'filename':filename,'template_version':version,'validation_status':status,'period_start':data.period_start,'period_end':data.period_end,'batch_count':len(batches),'vehicle_count':len(vehicles),'generated_at':generated_at}); return {'report_id':report_id,'filename':filename,'file_type':kind,'period_start':data.period_start,'period_end':data.period_end,'batch_ids':ids,'batch_count':len(batches),'vehicle_count':len(vehicles),'validation_status':status,'make_webhook':make_status,'blocking':[],'review':review}
+    if kind=='DOCX': weekly_docx_aggregate(path,data.period_start,data.period_end,batches,vehicles,template,generation_uploads)
+    else: weekly_pptx_aggregate(path,data.period_start,data.period_end,batches,vehicles,template,generation_uploads)
+    stored_path=publish_generated(path,{'DOCX':'application/vnd.openxmlformats-officedocument.wordprocessingml.document','PPTX':'application/vnd.openxmlformats-officedocument.presentationml.presentation'}[kind]); version=active['version'] if active else ('bundled-master-v1' if template else 'fallback-safe-v1'); status='Passed — weekly draft only' if not review else 'Generated — weekly review warnings'; generated_at=now(); scope=f'WEEKLY:{key}'; report_id=execute('INSERT INTO generated_reports(batch_id,file_type,filename,path,template_version,validation_status,generated_at) VALUES(?,?,?,?,?,?,?)',(scope,kind,filename,stored_path,version,status,generated_at)); make_status=send_draft_event({'event':'gschpt.draft.generated','report_id':report_id,'batch_id':scope,'file_type':kind,'filename':filename,'template_version':version,'validation_status':status,'period_start':data.period_start,'period_end':data.period_end,'batch_count':len(batches),'vehicle_count':len(vehicles),'generated_at':generated_at}); return {'report_id':report_id,'filename':filename,'file_type':kind,'period_start':data.period_start,'period_end':data.period_end,'batch_ids':ids,'batch_count':len(batches),'vehicle_count':len(vehicles),'validation_status':status,'make_webhook':make_status,'blocking':[],'review':review}
 @app.get('/api/drafts')
 def drafts(x_dev_user:str|None=Header(None)): auth(x_dev_user); return list_rows('SELECT * FROM generated_reports ORDER BY id DESC')
 @app.get('/api/drafts/{report_id}/download')
 def download(report_id:int,x_dev_user:str|None=Header(None)):
     auth(x_dev_user); r=get_row('SELECT * FROM generated_reports WHERE id=?',(report_id,));
-    if not r or not Path(r['path']).is_file(): raise HTTPException(404,'Draft not found')
+    if not r: raise HTTPException(404,'Draft not found')
+    if str(r['path']).startswith('blob:'): return Response(read_blob(r['path']),headers={'Content-Disposition':f'attachment; filename="{r["filename"]}"'})
+    if not Path(r['path']).is_file(): raise HTTPException(404,'Draft not found')
     return FileResponse(r['path'],filename=r['filename'])
 @app.post('/api/templates')
 def upload_template(file:UploadFile=File(...),x_dev_user:str|None=Header(None)):
@@ -159,4 +172,7 @@ def upload_template(file:UploadFile=File(...),x_dev_user:str|None=Header(None)):
     if ext not in allowed: raise HTTPException(400,'Only TXT, DOCX, and PPTX templates are accepted.')
     data=file.file.read();
     if len(data)>MAX_UPLOAD: raise HTTPException(413,'Template exceeds 20 MB limit.')
-    safe=Path(file.filename or ('template'+ext)).name; target=TEMPLATE_DIR/safe; target.write_bytes(data); kind=allowed[ext]; version=datetime.now().strftime('v%Y%m%d%H%M%S'); execute('UPDATE templates SET active=0 WHERE file_type=?',(kind,)); execute('INSERT INTO templates(file_type,filename,version,path,active,created_at) VALUES(?,?,?,?,1,?)',(kind,safe,version,str(target),now())); return {'filename':safe,'file_type':kind,'version':version,'active':True}
+    safe=Path(file.filename or ('template'+ext)).name; target=TEMPLATE_DIR/safe; target.write_bytes(data); kind=allowed[ext]
+    stored_path=put_blob(f'templates/{safe}',data,'application/octet-stream') if persistent_enabled() else str(target)
+    if persistent_enabled(): target.unlink(missing_ok=True)
+    version=datetime.now().strftime('v%Y%m%d%H%M%S'); execute('UPDATE templates SET active=0 WHERE file_type=?',(kind,)); execute('INSERT INTO templates(file_type,filename,version,path,active,created_at) VALUES(?,?,?,?,1,?)',(kind,safe,version,stored_path,now())); return {'filename':safe,'file_type':kind,'version':version,'active':True}

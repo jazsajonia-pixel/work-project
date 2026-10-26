@@ -5,3 +5,4 @@ python-docx==1.1.2
 python-pptx==1.0.2
 Pillow==12.3.0
 psycopg[binary]==3.3.6
+vercel-blob==0.5.0

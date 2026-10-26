@@ -56,6 +56,7 @@ Open the Vite URL, normally `http://localhost:5173`. The development dashboard s
 - `GSCHPT_DEV_USERNAME` / `GSCHPT_DEV_PASSWORD` — reserved development configuration; replace the header gate with real authentication before deployment.
 - `VITE_API_BASE_URL` — frontend build-time API base URL, defaulting to `http://localhost:8000/api`; set it in `frontend/.env.local` when frontend and backend are hosted separately.
 - `VITE_DEV_USER` — frontend development header value; keep it equal to `GSCHPT_DEV_USERNAME` for local use. This header gate must be replaced by real authentication before production.
+- `BLOB_READ_WRITE_TOKEN` / `BLOB_STORE_ID` — optional Vercel Blob credentials. When configured, private uploads, templates, and generated drafts are stored in Blob instead of Vercel's ephemeral filesystem. A Blob store connected to the Vercel project can also provide these through Vercel's environment integration.
 
 ## Tests
 
@@ -88,6 +89,6 @@ Upload authoritative `.txt`, `.docx`, and `.pptx` templates to the protected `PO
 
 The current production deployment is **https://gschpt-reporting.vercel.app** from `main`, commit `1429a73`. Vercel project: `gschpt-reporting`. Neon project: `gschpt-reporting` in `aws-ap-southeast-1`, with the application schema initialized in PostgreSQL.
 
-The deployment is a verified smoke deployment, not a production-security claim. It currently uses the development `X-Dev-User` header gate, and Vercel's writable filesystem is ephemeral. Photo/document uploads, generated drafts, and templates therefore require a durable private object store before operational use. Real identity/session handling, authorization tied to users, malware scanning, backups, retention, monitoring, and recovery are still required.
+The deployment is a verified smoke deployment, not a production-security claim. It currently uses the development `X-Dev-User` header gate. Without Vercel Blob credentials, Vercel's writable filesystem is ephemeral; with Blob configured, the health endpoint reports `storage: persistent` and private uploads, templates, and generated drafts use the Blob adapter. Real identity/session handling, authorization tied to users, malware scanning, backups, retention, monitoring, and recovery are still required.
 
 Before the next phase, supply the original templates and validate their structure. Then implement field mappings and fidelity checks against the actual files. The exact next step for Gemini is to add a review-only analysis service behind a feature flag after manual uploads and associations are stable; it must never create official facts or silently associate files.
