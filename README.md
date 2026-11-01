@@ -87,7 +87,7 @@ Upload authoritative `.txt`, `.docx`, and `.pptx` templates to the protected `PO
 
 ## Current Vercel/Neon deployment
 
-The current production deployment is **https://gschpt-reporting.vercel.app** from `main`, commit `1429a73`. Vercel project: `gschpt-reporting`. Neon project: `gschpt-reporting` in `aws-ap-southeast-1`, with the application schema initialized in PostgreSQL.
+The current production deployment is **https://gschpt-reporting.vercel.app** from `main`, commit `8793d4606ecbddfa38da0ceaf7c024c9a99730a5` (Vercel deployment `dpl_4utmhJAhzzo66Jt9GtzLwZZd5Pxo`, state READY as of 2026-11-01). Vercel project: `gschpt-reporting`. Neon project: `gschpt-reporting` in `aws-ap-southeast-1`, with the application schema initialized in PostgreSQL.
 
 The deployment is a verified smoke deployment, not a production-security claim. It currently uses the development `X-Dev-User` header gate. Without Vercel Blob credentials, Vercel's writable filesystem is ephemeral; with Blob configured, the health endpoint reports `storage: persistent` and private uploads, templates, and generated drafts use the Blob adapter. Real identity/session handling, authorization tied to users, malware scanning, backups, retention, monitoring, and recovery are still required.
 
